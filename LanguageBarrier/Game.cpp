@@ -20,6 +20,7 @@
 #include "TextRendering.h"
 #include "CustomInputRNE.h"
 #include "CustomInputRND.h"
+#include <regex>
 
 typedef int(__cdecl* EarlyInitProc)(int unk0, int unk1);
 static EarlyInitProc gameExeEarlyInit = NULL;
@@ -40,6 +41,15 @@ static MountArchiveRNEProc gameExeMountArchiveRNEReal = NULL;
 
 typedef int(__cdecl* MountArchiveRNDProc)(int id, const char* mountPoint,
                                           int unk01, int unk02, int unk03);
+
+typedef int(__fastcall* MountArchiveCHNProc)(int id, int unk01,
+                                             const char* mountPoint, int unk03,
+                                             const char* mountPoint2,
+                                             uint32_t dummy, void* dummy2,
+                                             void* dummy3, void* dummy4);
+static MountArchiveCHNProc gameExeMountArchiveCHN = NULL;
+static MountArchiveCHNProc gameExeMountArchiveCHNReal = NULL;
+
 static MountArchiveRNDProc gameExeMountArchiveRND = NULL;
 static MountArchiveRNDProc gameExeMountArchiveRNDReal = NULL;
 
@@ -56,9 +66,13 @@ typedef int(__cdecl* RnGslPngLoadProc)(int textureId, void* png, int size,
 static uintptr_t gameExeGslPngload = NULL;
 
 static uintptr_t gameExeGslDDSload = NULL;
+static uintptr_t gameExeGslDDSCHNload = NULL;
 
 static uintptr_t gameExeGslCreateTexture = NULL;
 static uintptr_t gameExeGslCreateTextureCLUT = NULL;
+
+uintptr_t gameExeDrawSpriteInternal2;
+static DrawSpriteInternal2Proc gameExeDrawSpriteInternal2Real;
 
 typedef int(__thiscall* RnGslDDSLoadProc)(void* surface, void* rawData,
                                           void* surface2);
@@ -81,6 +95,68 @@ struct DDSFile {
   DDS_HEADER dds;
   uint8_t dataStart;
 };
+
+
+
+__int64 __fastcall DrawSpriteInternal2Hook(__int64 a1, CHNSurface** a2,
+                                           __int64 a3, __int64 a4, CVector4* a5,
+                                           CVector4* a6, CVector4* a7, float a8,
+                                           char a9, ShaderInfoCHN* a10,
+                                           unsigned __int16 a11) {
+  if ((*a2)->field_44 == 0xA1) {
+    a10 = &pixelShaderArray[10];
+  }
+
+  return gameExeDrawSpriteInternal2Real(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10,
+                                        a11);
+}
+
+__int64 __fastcall CreateDDSInfoCHN(DDSFile* a1, __int64 a2, DDSInfo* a3) {
+  uint32_t v4;  // eax
+
+  if (a3) {
+    *(uint64_t*)&a3->field_0 = -1i64;
+    *(uint64_t*)&a3->field_8 = -1i64;
+    *(uint64_t*)&a3->width = 0i64;
+    a3->byte1C = 0;
+  }
+  if (a1->magic != ' SDD') return 0x80000000i64;
+  if (!a3) return 0i64;
+  a3->field_0 = 5;
+  v4 = a1->dds.ddspf.dwFourCC;
+  if (v4 > '3TXD') {
+    if (v4 == '4TXD') goto LABEL_11;
+    if (v4 == '5TXD') {
+      a3->field_4 = 9;
+      a3->field_8 = 9;
+      goto LABEL_12;
+    }
+  } else {
+    if (v4 == '3TXD') goto LABEL_11;
+    if (v4) {
+      if (v4 == '1TXD') {
+        a3->field_4 = 7;
+        a3->field_8 = 7;
+        goto LABEL_12;
+      }
+      if (v4 == '2TXD') {
+      LABEL_11:
+        a3->field_4 = 8;
+        a3->field_8 = 8;
+      LABEL_12:
+        a3->field_C = 0;
+        a3->width = a1->dds.dwWidth;
+        a3->height = a1->dds.dwHeight;
+        a3->bytesSize = 4 * a1->dds.dwWidth;
+        a3->byte1C = 0;
+        return 0i64;
+      }
+    }
+  }
+  a3->field_4 = 4;
+  a3->field_8 = 4;
+  goto LABEL_12;
+}
 
 unsigned int __fastcall ReCreateLoadTextureDDS(void* surface, void* edx,
                                                DDSFile* rawData, int a3) {
@@ -151,13 +227,23 @@ static OpenMyGamesProc gameExeOpenMyGames = NULL;  // = 0x48EE50 (C;C)
 static mpkObject* gameExeMpkObjects = NULL;
 typedef int(__thiscall* MpkFopenByIdProc)(void* pThis, mpkObject* mpk,
                                           int fileId, int unk3);
+
+typedef int(__thiscall* CpkFopenByIdProc)(void* pThis, CRIFileInfoData* mpk,
+                                          int fileId);
+static CpkFopenByIdProc gameExeCpkFopenById = NULL;
+static CpkFopenByIdProc gameExeCpkFopenByIdReal = NULL;
+
 static MpkFopenByIdProc gameExeMpkFopenById = NULL;
 static MpkFopenByIdProc gameExeMpkFopenByIdReal = NULL;
 
 static mgsVFSObject* gameExeFileObjects = NULL;
 typedef int(__thiscall* MgsFileOpenProc)(void* pThis, int unused);
+typedef int(__thiscall* MgsFileOpenProc64)(void* pThis, void* unused, int a2);
+
 static MgsFileOpenProc gameExeMgsFileOpen = NULL;
 static MgsFileOpenProc gameExeMgsFileOpenReal = NULL;
+static MgsFileOpenProc64 gameExeMgsFileOpen64 = NULL;
+static MgsFileOpenProc64 gameExeMgsFileOpenReal64 = NULL;
 
 typedef int(__cdecl* SNDgetPlayLevelProc)(int a1);
 static SNDgetPlayLevelProc gameExeSNDgetPlayLevel = NULL;
@@ -279,6 +365,7 @@ struct __declspec(align(4)) MgsD3D9State {
 };
 static MgsD3D9State* gameExePMgsD3D9State = NULL;
 MgsD3D11State* gameExePMgsD3D11State = NULL;
+CHND3D11State* gameExePChnD3D11State = NULL;
 
 static IDirect3D9Ex** gameExePpD3D9Ex = NULL;
 static D3DPRESENT_PARAMETERS* gameExePPresentParameters = NULL;
@@ -294,9 +381,12 @@ static int* gameExeScriptIdsToFileIds = NULL;
 
 static std::string stringReplacementTable;
 static mpkObject* c0dataMpk = NULL;
-static mgsVFSObject* c0dataCpk = NULL;
+static CRIFileInfoData* c0dataCpk = NULL;
 
 void* surfaceArray;
+CRIFileInfoData* criFileInfo;
+ShaderInfoCHN* pixelShaderArray = nullptr;
+ShaderInfoCHN* pixelShaderArray2 = nullptr;
 
 int* gameExeScrWork = (int*)NULL;
 
@@ -305,9 +395,17 @@ namespace lb {
 int SurfaceWrapper::game = 0;
 
 int __cdecl earlyInitHook(int unk0, int unk1);
+int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData * mpk,
+                                int fileId);
 int __fastcall mpkFopenByIdHook(void* pThis, void* EDX, mpkObject* mpk,
                                 int fileId, int unk3);
 int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused);
+int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
+                                 int unused);
+int __fastcall mountArchiveHookCHN(int id, int unk01, const char* mountPoint,
+                                   int unk03, const char* mountPoint2,
+                                   uint32_t dummy, void* dummy2, void* dummy3,
+                                   void* dummy4);
 const char* __cdecl getStringFromScriptHook(int scriptId, int stringId);
 int __fastcall closeAllSystemsHook(void* pThis, void* EDX);
 FILE* __cdecl clibFopenHook(const char* filename, const char* mode);
@@ -335,7 +433,10 @@ void gameInit() {
   in.seekg(0, std::ios::beg);
   in.read(&stringReplacementTable[0], stringReplacementTable.size());
   in.close();
-
+  if (!scanCreateEnableHook(
+          "game", "mgsFileOpen64", (uintptr_t*)&gameExeMgsFileOpen64,
+          (LPVOID)&mgsFileOpenHook64, (LPVOID*)&gameExeMgsFileOpenReal64))
+    return;
   globalTextReplacementsInit();
 
   gameExeTextureLoadInit1 = sigScan("game", "textureLoadInit1");
@@ -344,9 +445,25 @@ void gameInit() {
 
   gameExeGslCreateTexture = sigScan("game", "createTexture");
   gameExeGslCreateTextureCLUT = sigScan("game", "createTextureCLUT");
-  if (config["gamedef"]["signatures"]["game"].count("surfaceArray") == 1)
-    surfaceArray = *(void**)sigScan("game", "surfaceArray");
+  if (config["gamedef"]["signatures"]["game"].count("surfaceArray") == 1) {
+    auto surfPtr = sigScan("game", "surfaceArray");
+    surfaceArray = (void*)surfPtr;
+  }
 
+
+    if (config["gamedef"]["signatures"]["game"].count("CriFileInfo") == 1) {
+    auto criFileInfo2 = sigScan("game", "CriFileInfo");
+    criFileInfo = (CRIFileInfoData*)criFileInfo2;
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("pixelShaderArray") == 1) {
+    auto pixelShaderPtr = sigScan("game", "pixelShaderArray");
+    pixelShaderArray = (ShaderInfoCHN*)pixelShaderPtr;
+  }
+  if (config["gamedef"]["signatures"]["game"].count("pixelShaderArray") == 1) {
+    auto pixelShaderPtr = sigScan("game", "pixelShaderArray2");
+    pixelShaderArray2 = (ShaderInfoCHN*)pixelShaderPtr;
+  }
   gameExeEarlyInit = (EarlyInitProc)sigScan("game", "earlyInit");
   if (config["gamedef"]["signatures"]["game"].count("useOfPCurrentBgm") == 1)
     gameExePCurrentBgm = sigScan("game", "useOfPCurrentBgm");
@@ -354,6 +471,15 @@ void gameInit() {
     gameExePLoopBgm = sigScan("game", "useOfPLoopBgm");
   if (config["gamedef"]["signatures"]["game"].count("useOfPShouldPlayBgm") == 1)
     gameExePShouldPlayBgm = sigScan("game", "useOfPShouldPlayBgm");
+
+  if (config["gamedef"]["signatures"]["game"].count("drawSpriteInternal") ==
+      1) {
+    if (!scanCreateEnableHook("game", "drawSpriteInternal",
+                              (uintptr_t*)&gameExeDrawSpriteInternal2,
+                              (LPVOID)DrawSpriteInternal2Hook,
+                              (LPVOID*)&gameExeDrawSpriteInternal2Real))
+      return;
+  }
 
   if (config["gamedef"].count("gameArchiveMiddleware") == 1 &&
       config["gamedef"]["gameArchiveMiddleware"].get<std::string>() == "cri") {
@@ -370,7 +496,15 @@ void gameInit() {
                                 (LPVOID)mountArchiveHookRND,
                                 (LPVOID*)&gameExeMountArchiveRNDReal))
         return;
+    } else if (config["gamedef"]["signatures"]["game"].count(
+                   "mountArchiveCHN") == 1) {
+      if (!scanCreateEnableHook("game", "mountArchiveCHN",
+                                (uintptr_t*)&gameExeMountArchiveCHN,
+                                (LPVOID)mountArchiveHookCHN,
+                                (LPVOID*)&gameExeMountArchiveCHNReal))
+        return;
     }
+
   } else {
     gameExeMpkMount = sigScan("game", "mpkMount");
     gameExeMpkConstructor =
@@ -384,7 +518,9 @@ void gameInit() {
   scanCreateEnableHook("game", "recreateDDSSurface",
                        (uintptr_t*)&gameExeGslDDSload,
                        (LPVOID)ReCreateLoadTextureDDS, NULL);
-
+  scanCreateEnableHook("game", "createDDSInfo",
+                       (uintptr_t*)&gameExeGslDDSCHNload,
+                       (LPVOID)CreateDDSInfoCHN, NULL);
   scanCreateEnableHook("game", "openMyGames", (uintptr_t*)&gameExeOpenMyGames,
                        (LPVOID)openMyGamesHook, NULL);
 
@@ -399,8 +535,8 @@ void gameInit() {
                             (LPVOID*)&gameExeGetStringFromScriptReal) ||
       !scanCreateEnableHook("game", "clibFopen", (uintptr_t*)&gameExeClibFopen,
                             (LPVOID)clibFopenHook,
-                            (LPVOID*)&gameExeClibFopenReal))
-    return;
+                            (LPVOID*)&gameExeClibFopenReal)) {
+  };
 
   scanCreateEnableHook("game", "openFile", (uintptr_t*)&gameExeOpenFile,
                        (LPVOID)openFileHook, (LPVOID*)&gameExeOpenFileReal);
@@ -465,13 +601,14 @@ void gameInit() {
       return;
   }
 
-  gameExeScriptIdsToFileIds = (int*)sigScan("game", "useOfScriptIdsToFileIds");
-  if (config["gamedef"]["signatures"]["game"].count("useOfAudioPlayers") == 1)
-    gameExeAudioPlayers = *(CPlayer**)sigScan("game", "useOfAudioPlayers");
-  if (config["gamedef"]["signatures"]["game"].count("useOfMpkObjects") == 1)
-    gameExeMpkObjects = (mpkObject*)sigScan("game", "useOfMpkObjects");
-  if (config["gamedef"]["signatures"]["game"].count("useOfFileObjects") == 1)
-    gameExeFileObjects = (mgsVFSObject*)sigScan("game", "useOfFileObjects");
+  // gameExeScriptIdsToFileIds = (int*)sigScan("game",
+  // "useOfScriptIdsToFileIds"); if
+  // (config["gamedef"]["signatures"]["game"].count("useOfAudioPlayers") == 1)
+  //   gameExeAudioPlayers = *(CPlayer**)sigScan("game", "useOfAudioPlayers");
+  // if (config["gamedef"]["signatures"]["game"].count("useOfMpkObjects") == 1)
+  //   gameExeMpkObjects = (mpkObject*)sigScan("game", "useOfMpkObjects");
+  // if (config["gamedef"]["signatures"]["game"].count("useOfFileObjects") == 1)
+  //   gameExeFileObjects = (mgsVFSObject*)sigScan("game", "useOfFileObjects");
 
   if (config["patch"].value<bool>("disableUnconfiguredControllers", true)) {
     gameExeControllerGuid = sigScan("game", "useOfControllerGuid");
@@ -509,8 +646,18 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
     }
 
     if (config["gamedef"]["gameDxVersion"].get<std::string>() == "dx11") {
-      gameExePMgsD3D11State =
-          (**(MgsD3D11State***)sigScan("game", "useOfMgsD3D11State"));
+      // gameExePMgsD3D11State =
+      //     (**(MgsD3D11State***)sigScan("game", "useOfMgsD3D11State"));
+    }
+
+    if (config["gamedef"]["gameDxVersion"].get<std::string>() == "dx11-64") {
+      uint64_t meow = sigScan("game", "useOfChnD3D11State");
+      uint32_t meow2 = *(uint32_t*)meow;
+      scanCreateEnableHook(
+              "game", "openCPKFileById", (uintptr_t*)&gameExeCpkFopenById,
+              (LPVOID)&cpkFopenByIdHook, (LPVOID*)&gameExeCpkFopenByIdReal);
+
+      gameExePChnD3D11State = (CHND3D11State*)(*(uint32_t*)meow + meow + 8);
     }
 
     if (config["patch"].count("useNewTextSystem") == 1 &&
@@ -539,14 +686,24 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
                      "mountArchiveRND") == 1) {
         gameExeMountArchiveRNDReal(C0DATA_MOUNT_ID, "languagebarrier\\c0data",
                                    0, 1, 0);
-      }
+      } else {
+        mountArchiveHookCHN(
+            C0DATA_MOUNT_ID, 0, "c0data", 0,
+            "c0data", 0x800000u, 0, 0i64, 0);
+      };
       LanguageBarrierLog("c0data mounted");
 
-      c0dataCpk = &gameExeFileObjects[C0DATA_MOUNT_ID];
+      c0dataCpk = &criFileInfo[C0DATA_MOUNT_ID];
+
+           if (!scanCreateEnableHook(
+              "game", "mpkFopenById", (uintptr_t*)&gameExeCpkFopenById,
+              (LPVOID)&cpkFopenByIdHook, (LPVOID*)&gameExeCpkFopenByIdReal))
+        return retval;
+
 
       if (!scanCreateEnableHook(
-              "game", "mgsFileOpen", (uintptr_t*)&gameExeMgsFileOpen,
-              (LPVOID)&mgsFileOpenHook, (LPVOID*)&gameExeMgsFileOpenReal))
+              "game", "mgsFileOpen64", (uintptr_t*)&gameExeMgsFileOpen64,
+              (LPVOID)&mgsFileOpenHook64, (LPVOID*)&gameExeMgsFileOpenReal64))
         return retval;
     } else {
       c0dataMpk = gameMountMpk("C0DATA", lbDir.c_str(), "c0data.mpk");
@@ -618,6 +775,46 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
   return retval;
 }
 
+
+int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk,
+                                int fileId) {
+  char* mpkFilename = (char*)&mpk->name;
+  std::stringstream logstr;
+  logstr << "cpkFopenById(" << mpkFilename << ", 0x" << std::hex << fileId
+         << ")" << std::dec;
+#ifdef _DEBUG
+  LanguageBarrierLog(logstr.str());
+#endif
+  if (config["patch"].count("fileRedirection") == 1 &&
+      config["patch"]["fileRedirection"].count(mpkFilename) > 0) {
+    std::string key = std::to_string(fileId);
+    if (config["patch"]["fileRedirection"][mpkFilename].count(key) == 1) {
+      auto red = config["patch"]["fileRedirection"][mpkFilename][key];
+      if (red.type() == json::value_t::number_integer ||
+          red.type() == json::value_t::number_unsigned) {
+        int newFileId = red.get<int>();
+        logstr << " redirected to c0data.mpk, 0x" << std::hex << newFileId;
+#ifdef _DEBUG
+        LanguageBarrierLog(logstr.str());
+#endif
+        return gameExeCpkFopenByIdReal(pThis, c0dataCpk, newFileId);
+      } else if (red.type() == json::value_t::array) {
+        int archiveId = red[0].get<int>();
+        int newFileId = red[1].get<int>();
+        logstr << " redirected to " << criFileInfo[archiveId].name
+               << ", 0x" << std::hex << newFileId;
+#ifdef _DEBUG
+        LanguageBarrierLog(logstr.str());
+#endif
+        return gameExeCpkFopenByIdReal(pThis, &criFileInfo[archiveId],
+                                       newFileId);
+      }
+    }
+  }
+
+  return gameExeCpkFopenByIdReal(pThis, mpk, fileId);
+}
+
 int __fastcall mpkFopenByIdHook(void* pThis, void* EDX, mpkObject* mpk,
                                 int fileId, int unk3) {
   char* mpkFilename = (char*)&mpk->filename;
@@ -682,10 +879,68 @@ int __cdecl mountArchiveHookRNE(int id, const char* mountPoint,
   return gameExeMountArchiveRNEReal(id, mountPoint, path.c_str(), unk01);
 }
 
+int __fastcall mountArchiveHookCHN(int id, int unk01, const char* mountPoint,
+                                   int unk03, const char* mountPoint2,
+                                   uint32_t dummy, void* dummy2, void* dummy3,
+                                   void* dummy4) {
+  std::string path = mountArchiveHookPart(mountPoint);
+  std::string path2 = mountArchiveHookPart(mountPoint2);
+
+  return gameExeMountArchiveCHNReal(id, unk01, path.c_str(), unk03,
+                                    path2.c_str(), dummy, dummy2, dummy3,
+                                    dummy4);
+}
+
 int __cdecl mountArchiveHookRND(int id, const char* mountPoint, int unk01,
                                 int unk02, int unk03) {
   std::string path = mountArchiveHookPart(mountPoint);
   return gameExeMountArchiveRNDReal(id, path.c_str(), unk01, unk02, unk03);
+}
+
+int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
+                                 int unused) {
+  char* fileName = pThis->fileName;
+
+
+    int fileId = pThis->unsigned_int10;
+    char* archiveName = pThis->qword140->name;
+  
+    if (pThis->qword140 && (fileId > 0 || (fileName && fileName[0] != '\0')))
+    {
+      std::stringstream logstr;
+      logstr << "mgsFileOpen(" << archiveName << ", 0x" << std::hex << fileId
+             << ")" << std::dec;
+  #ifdef _DEBUG
+      LanguageBarrierLog(logstr.str());
+  #endif
+      if (config["patch"].count("fileRedirection") == 1 &&
+          config["patch"]["fileRedirection"].count(archiveName) > 0) {
+        std::string key;
+        if (fileId == -1) {
+          key = fileName;
+        } else {
+          key = std::to_string(fileId);
+        }
+        if (config["patch"]["fileRedirection"][archiveName].count(key) == 1) {
+          auto red = config["patch"]["fileRedirection"][archiveName][key];
+          if (red.type() == json::value_t::number_integer ||
+              red.type() == json::value_t::number_unsigned) {
+            int newFileId = red.get<int>();
+            logstr << " redirected to c0data, 0x" << std::hex << newFileId;
+  #ifdef _DEBUG
+            LanguageBarrierLog(logstr.str());
+  #endif
+            pThis->unsigned_int10 = newFileId;
+            pThis->qword140 = c0dataCpk;
+    //        if (fileId == -1) pThis->loadMode = 2;
+            return gameExeMgsFileOpenReal64(pThis,dummy, unused);
+          }
+        }
+      }
+    }
+
+  auto ret =  gameExeMgsFileOpenReal64(pThis, dummy, unused);
+  return ret;
 }
 
 int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused) {
@@ -718,7 +973,7 @@ int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused) {
           LanguageBarrierLog(logstr.str());
 #endif
           pThis->fileId = newFileId;
-          pThis->vfsObject = c0dataCpk;
+          pThis->vfsObject = (mgsVFSObject*)c0dataCpk;
           if (fileId == -1) pThis->loadMode = 2;
           return gameExeMgsFileOpenReal(pThis, unused);
         }
@@ -960,6 +1215,12 @@ void gameLoadTexture(uint16_t textureId, void* buffer, size_t sz) {
     if (textureId == 400) {
       return;
     }
+  } else if (config["gamedef"]["gslPngLoadVersion"].get<std::string>() ==
+             "chn") {
+    ((RnGslPngLoadProc)gameExeGslPngload)(textureId, buffer, sz, 1.0f);
+    if (textureId == 400) {
+      return;
+    }
   }
 }
 
@@ -968,16 +1229,16 @@ mpkObject* gameMountMpk(char const* mountpoint, char const* directory,
                         char const* filename) {
   void* retval = calloc(1, 0x3a8);
   gameExeMpkConstructor(retval);
-  __asm {
-			push ecx
-			mov ecx, retval
-			push 0
-			push filename
-			push directory
-			push mountpoint
-			call gameExeMpkMount
-			pop ecx
-  }
+  /* __asm {
+                         push ecx
+                         mov ecx, retval
+                         push 0
+                         push filename
+                         push directory
+                         push mountpoint
+                         call gameExeMpkMount
+                         pop ecx
+   }*/
   return (mpkObject*)retval;
 }
 void gameSetBgm(uint32_t fileId, bool shouldLoop) {

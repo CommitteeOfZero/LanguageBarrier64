@@ -89,9 +89,6 @@
     <ClCompile Include="lbjson.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BinkMod.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GameText.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -131,5 +128,21 @@
     <ClCompile Include="CustomInputRND.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="BinkMod.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GameTextCHN.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="dinput8.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="test.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

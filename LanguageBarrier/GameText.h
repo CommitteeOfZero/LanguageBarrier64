@@ -8,6 +8,12 @@
 #define GAMETEXT_H_IMPORT extern
 #endif
 
+
+struct CHNSurface;
+struct CVector4;
+struct ShaderInfoCHN;
+
+
 namespace lb {
 LB_GLOBAL uint8_t FIRST_FONT_ID;
 LB_GLOBAL float COORDS_MULTIPLIER;
@@ -81,6 +87,11 @@ GAMETEXT_H_IMPORT uint8_t* BacklogTextCo;
 GAMETEXT_H_IMPORT int* BacklogLineVoice;
 GAMETEXT_H_IMPORT int* BacklogDispLinePosY;
 GAMETEXT_H_IMPORT int* BacklogDispCurPosSY;
+GAMETEXT_H_IMPORT int* BacklogDispCurPosSY;
+
+struct CHNDialoguePage_t;
+
+extern  CHNDialoguePage_t* gameExeDialoguePages_CHNDialoguePage_t;
 
 void gameTextInit();
 void fixSkipRN();
@@ -92,6 +103,38 @@ int __cdecl drawSpriteHook(int textureId, float spriteX, float spriteY,
                            float spriteWidth, float spriteHeight,
                            float displayX, float displayY, int color,
                            int opacity, int shaderId);
+
+int __cdecl drawSpriteCHNHook(int textureId, float spriteX, float spriteY,
+                           float spriteWidth, float spriteHeight,
+                           float displayX, float displayY, int color,
+                           int opacity);
+void __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
+                              char* a5, unsigned int a6, unsigned int color,
+                              float a8, float a9, unsigned int a11);
+
+__int64 __fastcall drawSpriteMaskCHNHook(__int64 a1, __int64 a2, float a3,
+                                         float a4, float a5, float a6, float a7,
+                                         float a8, float a9, float a10, float a11,
+                                         float a12, int a13, int a14);
+
+__int64 __fastcall drawSpriteMask2CHNHook(__int64 a1, __int64 a2, float a3,
+                                          float a4, float a5, float a6,
+                                          float a7, float a8, float a9,
+                                          float a10, int a11, float a12,
+                                          int a13, int a14, int a15, int a16);
+
+void drawSpriteMaskCHNInternalHook(__int64 a1, CHNSurface** a2, __int64 a3,
+                                   int a4, CVector4* a5, CVector4* a6,
+                                   CVector4* a7, float a8, char a9,
+                                   ShaderInfoCHN* a10, __int16 a11);
+void __fastcall sub_1400443B0(__int64 a1, __int64 a2, __int64 a3, int a4,
+                                 int a5, int a6, int a7);
+
 }  // namespace lb
+
+
+extern "C" {
+inline uint8_t widths[lb::TOTAL_NUM_FONT_CELLS];
+}
 
 #endif  // !__GAMETEXT_H__

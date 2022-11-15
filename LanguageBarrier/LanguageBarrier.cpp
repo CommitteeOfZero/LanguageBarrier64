@@ -21,10 +21,11 @@ void *memset_perms(void *dst, int val, size_t size) {
   VirtualProtect(dst, size, oldProtect, &oldProtect);
   return retval;
 }
-void *memcpy_perms(void *dst, const void *src, size_t size) {
+void *memcpy_perms(void *dst, const void *src, size_t size, bool restore) {
   DWORD oldProtect;
   VirtualProtect(dst, size, PAGE_READWRITE, &oldProtect);
   void *retval = memcpy(dst, src, size);
+  if (restore)
   VirtualProtect(dst, size, oldProtect, &oldProtect);
   return retval;
 }

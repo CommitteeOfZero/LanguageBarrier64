@@ -23,14 +23,17 @@
 
 namespace lb {
 template <typename T>
-void write_perms(T *address, T val) {
+void write_perms(T *address, T val, bool restore=true) {
   DWORD oldProtect;
   VirtualProtect(address, sizeof(val), PAGE_READWRITE, &oldProtect);
   *address = val;
+  if (restore)
   VirtualProtect(address, sizeof(val), oldProtect, &oldProtect);
 }
+
+
 void *memset_perms(void *dst, int val, size_t size);
-void *memcpy_perms(void *dst, const void *src, size_t size);
+void *memcpy_perms(void *dst, const void *src, size_t size, bool restore = true);
 
 size_t alignCeil(size_t val, size_t align);
 

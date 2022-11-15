@@ -247,9 +247,9 @@ void drawSubs(bool deferred) {
           frame.pixfmt,
           lb::SurfaceWrapper::width(surfaceArray, RENDER_TARGET_SURF_ID),
           lb::SurfaceWrapper::height(surfaceArray, RENDER_TARGET_SURF_ID)};
-      if (csri_request_fmt(state->csri, &format) == 0) {
-        csri_render(state->csri, &frame, state->time);
-      }
+      //if (csri_request_fmt(state->csri, &format) == 0) {
+      //  csri_render(state->csri, &frame, state->time);
+      //}
 
       gameExePMgsD3D11State->pid3d11devicecontext18->Unmap(
           state->stagingTexture, 0);
@@ -311,8 +311,8 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* dummy, int a2,
       gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
           &desc, 0, &state->stagingTexture);
 
-      state->csri =
-          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
+      //state->csri =
+      //    csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
     }
     in.close();
   }
@@ -358,8 +358,8 @@ int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
       gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
           &desc, 0, &state->stagingTexture);
 
-      state->csri =
-          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
+      //state->csri =
+      //    csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
     }
     in.close();
   }
@@ -373,7 +373,7 @@ int __fastcall mgsMovieCPlayerStopHook(void* pThis) {
   CriManaModState_t* state = stateMap[pThis];
 
   if (state->csri) {
-    csri_close(state->csri);
+    //csri_close(state->csri);
   }
   if (state->stagingTexture) {
     state->stagingTexture->Release();

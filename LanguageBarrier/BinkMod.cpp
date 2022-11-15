@@ -137,8 +137,9 @@ void fill_resampled_buffer() {
       pVorbis, CHANNEL_COUNT, decoded_buffer, DECODED_BUFFER_CAPACITY);
   size_t in_len = decoded_available_samples;
   size_t out_len = RESAMPLED_BUFFER_CAPACITY;
-  speex_resampler_process_interleaved_int(resampler, decoded_buffer, &in_len,
-                                          resampled_buffer, &out_len);
+  speex_resampler_process_interleaved_int(
+      resampler, decoded_buffer, (unsigned int*)&in_len,
+                                          resampled_buffer, (unsigned int*) & out_len);
   resampled_available_samples = out_len;
 }
 size_t get_resampled(short* dest, size_t num_samples) {
@@ -568,8 +569,8 @@ BINK* __stdcall BinkOpenHook(const char* name, uint32_t flags) {
       in.seekg(0, std::ios::beg);
       in.read(&sub[0], sub.size());
 
-      state->csri =
-          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
+      //state->csri =
+      //    csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
     }
     in.close();
   }
@@ -631,7 +632,7 @@ void __stdcall BinkCloseHook(BINK* bnk) {
     _aligned_free(state->framebuffer);
   }
   if (state->csri) {
-    csri_close(state->csri);
+    //csri_close(state->csri);
   }
   if (resampler != NULL) {
     speex_resampler_destroy(resampler);
@@ -698,8 +699,8 @@ int32_t __stdcall BinkCopyToBufferHook(BINK* bnk, void* dest, int32_t destpitch,
   frame.strides[0] = destpitch;
   frame.pixfmt = CSRI_F_BGR_;
   csri_fmt format = {frame.pixfmt, destwidth, destheight};
-  if (csri_request_fmt(state->csri, &format) == 0)
-    csri_render(state->csri, &frame, time);
+  //if (csri_request_fmt(state->csri, &format) == 0)
+  //  csri_render(state->csri, &frame, time);
 
   // xy-VSFilter apparently doesn't support drawing onto BGRA directly and will
   // set the alpha of everything it touches to 0. So let's just pretend
@@ -768,14 +769,15 @@ int __stdcall BinkDoFrameAsyncWaitHook(BINK* bnk, int32_t timeout) {
 
 #pragma warning(push)
 #pragma warning(disable : 4414)  // short jump to function converted to near
-int __declspec(naked) decompAudioInnerHookThunk() {
-  __asm {
-    // remember to save/restore ecx if [binkDllDecompAudioInnerReal] is going to
-    // be used
-    cmp [pVorbis], 0
-    jnz decompAudioInnerHook
-    jmp [binkDllDecompAudioInnerReal]
-  }
+int /* __declspec(naked) */decompAudioInnerHookThunk() {
+  //__asm {
+  //  // remember to save/restore ecx if [binkDllDecompAudioInnerReal] is going to
+  //  // be used
+  //  cmp [pVorbis], 0
+  //  jnz decompAudioInnerHook
+  //  jmp [binkDllDecompAudioInnerReal]
+  //}
+  return 0;
 }
 #pragma warning(pop)
 

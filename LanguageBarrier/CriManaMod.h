@@ -2,7 +2,6 @@
 #define __CRIMANAMOD_H__
 
 #include <cstdint>
-#include <d3d11.h>
 
 typedef int(__thiscall* SurfMapProc)(void* pThis, int dummy, int texId,
                                      int unk2);

@@ -1,18 +1,24 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30413.136
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32819.101
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LanguageBarrier", "LanguageBarrier\LanguageBarrier.vcxproj", "{EB407818-EE6D-4CE0-8F39-E81B95D63034}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		dinput8-Debug|x64 = dinput8-Debug|x64
 		dinput8-Debug|x86 = dinput8-Debug|x86
+		dinput8-Release|x64 = dinput8-Release|x64
 		dinput8-Release|x86 = dinput8-Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Debug|x64.ActiveCfg = dinput8-Debug|x64
+		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Debug|x64.Build.0 = dinput8-Debug|x64
 		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Debug|x86.ActiveCfg = dinput8-Debug|Win32
 		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Debug|x86.Build.0 = dinput8-Debug|Win32
+		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Release|x64.ActiveCfg = dinput8-Release|x64
+		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Release|x64.Build.0 = dinput8-Release|x64
 		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Release|x86.ActiveCfg = dinput8-Release|Win32
 		{EB407818-EE6D-4CE0-8F39-E81B95D63034}.dinput8-Release|x86.Build.0 = dinput8-Release|Win32
 	EndGlobalSection

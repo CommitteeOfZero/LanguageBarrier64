@@ -2,13 +2,13 @@
 #include <string>
 #include <freetype/ftstroke.h>
 #include "Game.h"
-#include <d3d11.h>
 #include <directxtex.h>
 #include <nlohmann/json.hpp>
 #include <fstream>
-#include <codecvt>
+#include <codecvt>  
 #include <freetype/ftdriver.h>
 #include <freetype/ftmodapi.h>
+#include "LanguageBarrier.h"
 void to_json(nlohmann::json& j, const FontGlyph& p) {
   j = nlohmann::json{{"a", p.advance}, {"x", p.x},    {"y", p.y},
                      {"t", p.top},     {"l", p.left}, {"r", p.rows},
@@ -86,14 +86,19 @@ void TextRendering::Init(void* widthData, void* widthData2,
     newWidth[i] =
         this->getFont(32, true)->getGlyphInfo(i, FontType::Regular)->advance;
     newWidth2[i] = newWidth[i];
-    this->widthData[i] = newWidth[i];
-    this->widthData2[i] = newWidth[i];
+    lb::write_perms<uint8_t>(&this->widthData[i], newWidth[i],
+                                        false);
+    lb::write_perms<uint8_t>(&this->widthData2[i], newWidth[i],
+                                        false);
   }
   this->fontData.erase(32);
-  this->widthData[0] = lb::config["patch"]["spaceWidthPixels"].get<uint16_t>();
-  this->widthData[lb::config["gamedef"]["glyphIdFullwidthSpace"]
-                      .get<uint16_t>()] =
-      lb::config["patch"]["spaceWidthPixels"].get<uint16_t>();
+  lb::write_perms<uint8_t>(
+      &this->widthData[0],
+      lb::config["patch"]["spaceWidthPixels"].get<uint16_t>());
+  lb::write_perms<uint8_t>(
+      &this->widthData[lb::config["gamedef"]["glyphIdFullwidthSpace"]],
+      lb::config["patch"]["spaceWidthPixels"].get<uint16_t>());
+
   ;
 }
 
@@ -317,15 +322,24 @@ void TextRendering::buildFont(int fontSize, bool measure) {
 
     if (lb::SurfaceWrapper::getTexPtr(surfaceArray, FONT_TEXTURE_ID, 0) ==
         nullptr) {
+      lb::SurfaceWrapper::setTexPtr(surfaceArray, FONT_TEXTURE_ID, 0, nullptr);
+      lb::SurfaceWrapper::setShaderRscView(surfaceArray, FONT_TEXTURE_ID,
+                                           nullptr);
       lb::gameLoadTexture(FONT_TEXTURE_ID, fontData->texture.GetBufferPointer(),
                           fontData->texture.GetBufferSize());
-    }
+
+
+      }
     if (lb::SurfaceWrapper::getTexPtr(surfaceArray, OUTLINE_TEXTURE_ID, 0) ==
         nullptr) {
+        lb::SurfaceWrapper::setTexPtr(surfaceArray, OUTLINE_TEXTURE_ID, 0,
+                                      nullptr);
+      lb::SurfaceWrapper::setShaderRscView(surfaceArray, OUTLINE_TEXTURE_ID,
+                                    nullptr);
       lb::gameLoadTexture(OUTLINE_TEXTURE_ID,
                           fontData->texture2.GetBufferPointer(),
                           fontData->texture2.GetBufferSize());
-    }
+      }
     fontData->fontTexture.Release();
     fontData->outlineTexture.Release();
 
@@ -360,14 +374,15 @@ void TextRendering::loadTexture(int fontSize) {
   D3D11_SHADER_RESOURCE_VIEW_DESC rscViewDesc;
 
   memset(&rscViewDesc, 0, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+  ID3D11Device* name = gameExePChnD3D11State->pid3d11deviceC;
   auto result = DirectX::CreateTexture(
-      gameExePMgsD3D11State->pid3d11deviceC,
+      name,
       this->fontData[fontSize].fontTexture.GetImages(),
       this->fontData[fontSize].fontTexture.GetImageCount(),
       this->fontData[fontSize].fontTexture.GetMetadata(),
       (ID3D11Resource**)&this->fontData[fontSize].fontTexturePtr);
   result = DirectX::CreateTexture(
-      gameExePMgsD3D11State->pid3d11deviceC,
+      name,
       this->fontData[fontSize].outlineTexture.GetImages(),
       this->fontData[fontSize].outlineTexture.GetImageCount(),
       this->fontData[fontSize].outlineTexture.GetMetadata(),
@@ -377,12 +392,24 @@ void TextRendering::loadTexture(int fontSize) {
   rscViewDesc.Buffer.NumElements = 1;
   rscViewDesc.Texture2D.MipLevels =
       this->fontData[fontSize].fontTexture.GetMetadata().mipLevels;
-  result = gameExePMgsD3D11State->pid3d11deviceC->CreateShaderResourceView(
+  result = name->CreateShaderResourceView(
       this->fontData[fontSize].fontTexturePtr, &rscViewDesc,
       &this->fontData[fontSize].fontShaderRscView);
-  result = gameExePMgsD3D11State->pid3d11deviceC->CreateShaderResourceView(
+  result = name->CreateShaderResourceView(
       this->fontData[fontSize].outlineTexturePtr, &rscViewDesc,
       &this->fontData[fontSize].outlineShaderRscView);
+  char name2[32];
+  sprintf_s<32>(name2, "%s %i", "Texture size", fontSize);
+  this->fontData[fontSize].fontTexturePtr->SetPrivateData(
+      WKPDID_D3DDebugObjectName, 32, name2);
+  this->fontData[fontSize].fontShaderRscView->SetPrivateData(
+      WKPDID_D3DDebugObjectName, 32, name2);
+  sprintf_s<32>(name2, "%s %i", "Outline size", fontSize);
+
+  this->fontData[fontSize].outlineTexturePtr->SetPrivateData(
+      WKPDID_D3DDebugObjectName, 32, name2);
+  this->fontData[fontSize].outlineShaderRscView->SetPrivateData(
+      WKPDID_D3DDebugObjectName, 32, name2);
 }
 
 void TextRendering::saveCache() {
@@ -452,7 +479,12 @@ void TextRendering::loadCache() {
           lb::gameLoadTexture(FONT_TEXTURE_ID,
                               fontData->texture.GetBufferPointer(),
                               fontData->texture.GetBufferSize());
+          lb::SurfaceWrapper::setTexPtr(surfaceArray, FONT_TEXTURE_ID, 0,
+                                        fontData->fontTexturePtr);
         }
+
+
+
         if (lb::SurfaceWrapper::getTexPtr(surfaceArray, OUTLINE_TEXTURE_ID,
                                           0) == nullptr) {
           dummy.Initialize2D(DXGI_FORMAT::DXGI_FORMAT_A8_UNORM, 1, 1, 1, 1);
@@ -463,6 +495,7 @@ void TextRendering::loadCache() {
                               fontData->texture2.GetBufferPointer(),
                               fontData->texture2.GetBufferSize());
         }
+
         fontData->fontTexture.Release();
         fontData->outlineTexture.Release();
       }
@@ -576,9 +609,12 @@ void TextRendering::replaceFontSurface(int size) {
   if (currentSize == size) return;
   auto currentFontData = this->getFont(size, false);
 
-  if (lb::SurfaceWrapper::getTexPtr(surfaceArray, OUTLINE_TEXTURE_ID, 0) ==
+  if (lb::SurfaceWrapper::getTexPtr(surfaceArray, FONT_TEXTURE_ID, 0) ==
           nullptr &&
       currentFontData->texture.GetBufferPointer() != nullptr) {
+    lb::SurfaceWrapper::setTexPtr(surfaceArray, FONT_TEXTURE_ID, 0, nullptr);
+    lb::SurfaceWrapper::setShaderRscView(surfaceArray, FONT_TEXTURE_ID,
+                                         nullptr);
     lb::gameLoadTexture(FONT_TEXTURE_ID,
                         currentFontData->texture.GetBufferPointer(),
                         currentFontData->texture.GetBufferSize());
@@ -587,6 +623,9 @@ void TextRendering::replaceFontSurface(int size) {
   if (lb::SurfaceWrapper::getTexPtr(surfaceArray, OUTLINE_TEXTURE_ID, 0) ==
           nullptr &&
       currentFontData->texture2.GetBufferPointer() != nullptr) {
+    lb::SurfaceWrapper::setTexPtr(surfaceArray, OUTLINE_TEXTURE_ID, 0, nullptr);
+    lb::SurfaceWrapper::setShaderRscView(surfaceArray, OUTLINE_TEXTURE_ID,
+                                         nullptr);
     lb::gameLoadTexture(OUTLINE_TEXTURE_ID,
                         currentFontData->texture2.GetBufferPointer(),
                         currentFontData->texture2.GetBufferSize());
@@ -610,7 +649,7 @@ void TextRendering::replaceFontSurface(int size) {
       FONT_CELL_SIZE * ceil((float)NUM_GLYPHS / GLYPHS_PER_ROW));
   lb::SurfaceWrapper::setField_40(surfaceArray, OUTLINE_TEXTURE_ID,
                                   FONT_CELL_SIZE * GLYPHS_PER_ROW);
-  lb::SurfaceWrapper::setField_44(
+   lb::SurfaceWrapper::setField_44(
       surfaceArray, OUTLINE_TEXTURE_ID,
       FONT_CELL_SIZE * ceil((float)NUM_GLYPHS / GLYPHS_PER_ROW));
   lb::SurfaceWrapper::setTexPtr(surfaceArray, FONT_TEXTURE_ID, 0,
@@ -655,3 +694,5 @@ FontGlyph* FontData::getGlyphInfo(int id, FontType type) {
       break;
   }
 }
+
+

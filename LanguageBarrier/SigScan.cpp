@@ -176,7 +176,7 @@ uintptr_t sigScan(const char* category, const char* sigName,
   uintptr_t raw = sigScanRaw(category, sigName, isData);
   json sig = config["gamedef"]["signatures"][category][sigName];
   if (sig.count("expr") == 0) return raw;
-
+  if (raw==0) return raw;
   try {
     return SigExpr(sig["expr"].get<std::string>(), raw).evaluate();
   } catch (std::runtime_error& e) {
