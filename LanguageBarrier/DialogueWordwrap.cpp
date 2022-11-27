@@ -57,10 +57,12 @@ bool is_letter(uint16_t c);
 void dlgWordwrapGenerateMaskHook(int unk0);
 
 void dialogueWordwrapInit() {
+  uintptr_t baseAddress = (uintptr_t)GetModuleHandle(0);
   gameExeDlgWordwrapString =
-      (uint16_t*)sigScan("game", "useOfDlgWordwrapString");
+      (uint16_t*)(sigScan("game", "useOfDlgWordwrapString") +baseAddress );
   gameExeDlgWordwrapLength = (int*)sigScan("game", "useOfDlgWordwrapLength");
-  gameExeDlgWordwrapMask = (uint8_t*)sigScan("game", "useOfDlgWordwrapMask");
+  gameExeDlgWordwrapMask =
+      (uint8_t*)(sigScan("game", "useOfDlgWordwrapMask") + baseAddress);
   scanCreateEnableHook("game", "dlgWordwrapGenerateMask",
                        (uintptr_t*)&gameExeDlgWordwrapGenerateMask,
                        (LPVOID)dlgWordwrapGenerateMaskHook,
@@ -77,16 +79,16 @@ void dialogueWordwrapInit() {
     std::wstring type2_punct = converter.from_bytes(input2);
 
     for (auto character : type1_punct) {
-      for (int i = 0; i < TextRendering::Get().fullCharMap.length(); i++) {
-        if (TextRendering::Get().fullCharMap[i] == character)
+      for (int i = 0; i < TextRendering::Get().characterInfo.size(); i++) {
+        if (TextRendering::Get().characterInfo[i].characterutf16 == character)
           type1_punctuation.insert(i);
       }
     }
     type1_punctuation.insert(0x3F);
     type2_punctuation.clear();
     for (auto character : type2_punct) {
-      for (int i = 0; i < TextRendering::Get().fullCharMap.length(); i++) {
-        if (TextRendering::Get().fullCharMap[i] == character)
+      for (int i = 0; i < TextRendering::Get().characterInfo.size(); i++) {
+        if (TextRendering::Get().characterInfo[i].characterutf16 == character)
           type2_punctuation.insert(i);
       }
     }

@@ -72,6 +72,8 @@ typedef struct {
 struct GlyphMap {
   std::unordered_map<uint16_t, FontGlyph> glyphMap;
   std::unordered_map<uint16_t, FontGlyph> outlineMap;
+  std::unordered_map<uint16_t, FontGlyph> italicsMap;
+
   template <class Archive>
   void serialize(Archive& ar) {
     ar(glyphMap, outlineMap);
@@ -149,6 +151,14 @@ struct TextRendering {
   uint8_t newWidth2[32000];
   uint8_t* widthData;
   uint8_t* widthData2;
+  struct charInfo {
+    std::string character;
+    bool italic = false;
+    int index = -1;
+    wchar_t characterutf16;
+  };
+  std::vector<charInfo> characterInfo;
+
   void Init(void* widthData, void* widthData2, FontDataLanguage language);
   void buildFont(int fontSize, bool measure);
 
@@ -161,15 +171,12 @@ struct TextRendering {
   void loadCache();
 
   std::unordered_map<uint16_t, FontData> fontData;
-  std::wstring filteredCharMap;
-  std::wstring fullCharMap;
-  std::wstring* currentCharMap;
 
   inline static TextRendering& Get() {
     static TextRendering instance;
     return instance;
   }
-  void renderGlyph(FontData* fontData, uint16_t n, bool measure);
+  void renderGlyph(FontData* fontData, const charInfo &n, bool measure);
 
   void RenderOutline(FontData* fontData, uint16_t n, bool measure);
 

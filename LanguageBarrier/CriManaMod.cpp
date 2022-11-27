@@ -9,10 +9,14 @@
 #include "LanguageBarrier.h"
 #include "SigScan.h"
 #include "DirectXTex.h"
-
+#include "directxtk/SpriteBatch.h"
+#include "ass/ass.h"
+#include "directxtk/CommonStates.h"
 #define FLOATING_POINT
 #define OUTSIDE_SPEEX
 #define RANDOM_PREFIX lb_speexdsp_
+#include <d3d11_1.h>
+
 #include "contrib/speexdsp/speex_resampler.h"
 
 typedef struct {
@@ -107,25 +111,77 @@ typedef struct {
   CriManaFrameInfo criManaFrameInfo;
 } MgsMoviePlayerRNDObj_t;
 
-typedef struct {
+struct __declspec(align(8)) mgsMoviePlayerObjCHN {
+  uint8_t gap_0[8];
+  char byte_8;
+  uint8_t gap_9;
+  char byte_a;
+  char byte_b;
+  uint8_t gap_C;
+  char byte_d;
+  char byte_e;
+  char byte_f;
+  char byte_10;
+  uint8_t gap_11[3];
+  uint8_t byte_14;
+  uint8_t byte_15;
+  char byte_16;
+  uint8_t gap_17[5];
+  __int16 word_1c;
+  uint8_t gap_1E[2];
+  uint16_t word_20;
+  uint8_t gap_22[6];
+  int dword_28;
+  int dword_2c;
+  __int64 dqword_30;
+  __int64 dqword_38;
+  __int64 qword_40;
+  uint64_t qword_48;
+  __int64 qword_50;
+  uint8_t gap_58[3210];
+  __int16 word_ce2;
+  uint16_t word_ce4;
+  uint16_t word_ce6;
+  uint8_t gap_CE8[136];
+  __int64 qword_d70;
+  uint8_t gap_D78[88];
+  uint32_t dword_dd0;
+  uint8_t gap_DD4[4];
+  uint64_t qword_dd8;
+  int dword_de0;
+  uint8_t gap_DE4[4];
+  CriManaFrameInfo criManaFrameInfo;
+  uint8_t gapEB8[8];
+  __int64 qword_ec0;
+  uint8_t gap_EC8[52];
+  uint32_t dword_efc;
+  int dword_f00;
+  char gap_f04[852];
+};
+
+struct CriManaModState_t {
   uint32_t lastFrameNum = 0;
   bool keepLastFrame = false;
   double time = 0;
+  bool copy = false;
   ID3D11Texture2D* stagingTexture = NULL;
+  ID3D11Texture2D* subsTexture = NULL;
+  ID3D11ShaderResourceView* subRscView = nullptr;
   csri_inst* csri = NULL;
-} CriManaModState_t;
+};
 
 static std::unordered_map<void*, CriManaModState_t*> stateMap;
+std::shared_ptr<CriManaModState_t> state = nullptr;
 
-uint32_t RENDER_TARGET_SURF_ID = 199;
+uint32_t RENDER_TARGET_SURF_ID = 203;
 
 typedef int(__thiscall* MgsMovieCPlayerPlayProc)(void* pThis, int a2, int a3,
                                                  char* movieFileName);
 static MgsMovieCPlayerPlayProc gameExeMgsMovieCPlayerPlay = NULL;
 static MgsMovieCPlayerPlayProc gameExeMgsMovieCPlayerPlayReal = NULL;
 
-typedef int(__thiscall* MgsMovieCPlayerPlayByIdProc)(void* pThis, int a2,
-                                                     int id);
+typedef int(__thiscall* MgsMovieCPlayerPlayByIdProc)(void* pThis, int a1,
+                                                     int id, int a3);
 static MgsMovieCPlayerPlayByIdProc gameExeMgsMovieCPlayerPlayById = NULL;
 static MgsMovieCPlayerPlayByIdProc gameExeMgsMovieCPlayerPlayByIdReal = NULL;
 
@@ -141,8 +197,7 @@ typedef int(__cdecl* DrawMovieFrameProc)(int tint, int opacity);
 static DrawMovieFrameProc gameExeDrawMovieFrame = NULL;
 static DrawMovieFrameProc gameExeDrawMovieFrameReal = NULL;
 
-typedef int(__cdecl* DrawMovieFrameRNDProc)(int unk1, int tint, int opacity,
-                                            int unk2);
+typedef int(__cdecl* DrawMovieFrameRNDProc)(int unk1, int tint, int opacity);
 static DrawMovieFrameRNDProc gameExeDrawMovieFrameRND = NULL;
 static DrawMovieFrameRNDProc gameExeDrawMovieFrameRNDReal = NULL;
 
@@ -156,7 +211,7 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* dummy, int a2,
 int __fastcall mgsMovieCPlayerStopHook(void* pThis);
 int __fastcall mgsMovieCPlayerRenderHook(void* pThis);
 int __cdecl drawMovieFrameHook(int tint, int opacity);
-int __cdecl drawMovieFrameHookRND(int unk1, int tint, int opacity, int unk2);
+int __cdecl drawMovieFrameHookRND(int unk1, int tint, int opacity);
 
 bool criManaModInit() {
   if (config["patch"].count("fmv") != 1) {
@@ -165,10 +220,8 @@ bool criManaModInit() {
     return true;
   }
 
-  if (config["gamedef"].count("videoPlayerVariant") == 1 &&
-      config["gamedef"]["videoPlayerVariant"] == "rnd") {
+  if (true) {
     VideoPlayerObjVariant = 1;
-    RENDER_TARGET_SURF_ID = 210;
 
     if (!scanCreateEnableHook("game", "mgsMovieCPlayerPlayById",
                               (uintptr_t*)&gameExeMgsMovieCPlayerPlayById,
@@ -215,27 +268,20 @@ bool criManaModInit() {
 static __m128i MaskFF000000 = _mm_set1_epi32(0xFFFFFF00);
 
 void drawSubs(bool deferred) {
-  for (const auto& kv : stateMap) {
-    auto state = kv.second;
-    if (!state->keepLastFrame) {
-      if (deferred) {
-        ID3D11CommandList* pCommandList;
-        ID3D11DeviceContext* test =
-            (&gameExePMgsD3D11State->pid3d11deferredcontext1)
-                [*(uint32_t*)&gameExePMgsD3D11State->gap0];
-        HRESULT hr = test->FinishCommandList(1, &pCommandList);
-        gameExePMgsD3D11State->pid3d11devicecontext18->ExecuteCommandList(
-            pCommandList, 0);
-        pCommandList->Release();
-      }
+  if (!state->keepLastFrame) {
+    ID3D11DeviceContext* test = gameExePChnD3D11State->pid3d11devicecontext18;
+    if (deferred) {
+      ID3D11CommandList* pCommandList;
+      test = (gameExePChnD3D11State->pid3d11devicecontext20)[*(
+          uint32_t*)gameExeD3D11DeferredContextIndex];
 
-      gameExePMgsD3D11State->pid3d11devicecontext18->CopyResource(
-          state->stagingTexture, lb::SurfaceWrapper::getTexPtr(
-                                     surfaceArray, RENDER_TARGET_SURF_ID, 0));
+      test->CopyResource(state->stagingTexture,
+                         lb::SurfaceWrapper::getTexPtr(
+                             surfaceArray, RENDER_TARGET_SURF_ID, 0));
 
       D3D11_MAPPED_SUBRESOURCE rsc;
       memset(&rsc, 0, sizeof(D3D11_MAPPED_SUBRESOURCE));
-      HRESULT hr = gameExePMgsD3D11State->pid3d11devicecontext18->Map(
+      HRESULT hr = gameExePChnD3D11State->pid3d11devicecontext18->Map(
           state->stagingTexture, 0, D3D11_MAP_READ_WRITE, 0, &rsc);
 
       uint8_t* imagePtr = (uint8_t*)rsc.pData;
@@ -247,22 +293,36 @@ void drawSubs(bool deferred) {
           frame.pixfmt,
           lb::SurfaceWrapper::width(surfaceArray, RENDER_TARGET_SURF_ID),
           lb::SurfaceWrapper::height(surfaceArray, RENDER_TARGET_SURF_ID)};
-      //if (csri_request_fmt(state->csri, &format) == 0) {
-      //  csri_render(state->csri, &frame, state->time);
-      //}
 
-      gameExePMgsD3D11State->pid3d11devicecontext18->Unmap(
+      if (csri_request_fmt(state->csri, &format) == 0) {
+        csri_render(state->csri, &frame, state->time);
+      }
+
+      auto m_spriteBatch = std::make_unique<DirectX::SpriteBatch>(test);
+
+      gameExePChnD3D11State->pid3d11devicecontext18->Unmap(
           state->stagingTexture, 0);
-      gameExePMgsD3D11State->pid3d11devicecontext18->CopyResource(
-          lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0),
-          state->stagingTexture);
+      gameExePChnD3D11State->pid3d11devicecontext18->CopyResource(
+          state->subsTexture, state->stagingTexture);
+
+      ID3D11RasterizerState* rsState;
+      test->RSGetState(&rsState);
+      m_spriteBatch->Begin();
+      RECT r;
+      r.left = 0;
+      r.right = format.width;
+      r.top = 0;
+      r.bottom = format.height;
+      m_spriteBatch->Draw(state->subRscView, r);
+      m_spriteBatch->End();
+      test->RSSetState(rsState);
     }
   }
 }
 
-int __cdecl drawMovieFrameHookRND(int unk1, int tint, int opacity, int unk2) {
-  int ret = gameExeDrawMovieFrameRNDReal(unk1, tint, opacity, unk2);
-  drawSubs(true);
+int __cdecl drawMovieFrameHookRND(int unk1, int tint, int opacity) {
+  int ret = gameExeDrawMovieFrameRNDReal(unk1, tint, opacity);
+  if(state!=nullptr)drawSubs(true);
   return ret;
 }
 
@@ -272,9 +332,13 @@ int __cdecl drawMovieFrameHook(int tint, int opacity) {
   return ret;
 }
 
-int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* dummy, int a2,
-                                           int id) {
+int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* a1, int id,
+                                           int a3) {
   std::string subFileName;
+
+  char name[256];
+
+
   std::string movieFileName = std::to_string(id);
   // note: case sensitive
   if (config["patch"]["fmv"].count("subs") == 1 &&
@@ -297,8 +361,19 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* dummy, int a2,
       in.seekg(0, std::ios::beg);
       in.read(&sub[0], sub.size());
 
-      CriManaModState_t* state = new CriManaModState_t;
-      stateMap.emplace(pThis, state);
+      if (state != nullptr) {
+        if (state->csri) {
+          csri_close(state->csri);
+        }
+        if (state->stagingTexture) {
+          state->stagingTexture->Release();
+        }
+        if (state->subsTexture) {
+          state->subsTexture->Release();
+        }
+      }
+
+      state = std::make_shared<CriManaModState_t>();
 
       D3D11_TEXTURE2D_DESC desc;
       memset(&desc, 0, sizeof(D3D11_TEXTURE2D_DESC));
@@ -308,21 +383,35 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* dummy, int a2,
       desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
       desc.BindFlags = 0;
 
-      gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
+      gameExePChnD3D11State->pid3d11deviceC->CreateTexture2D(
           &desc, 0, &state->stagingTexture);
 
-      //state->csri =
-      //    csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
+      desc.Usage = D3D11_USAGE_DYNAMIC;
+      desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+      desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+      gameExePChnD3D11State->pid3d11deviceC->CreateTexture2D(
+          &desc, 0, &state->subsTexture);
+
+      D3D11_SHADER_RESOURCE_VIEW_DESC rsc;
+      lb::SurfaceWrapper::getResourceView(surfaceArray, RENDER_TARGET_SURF_ID,
+                                          0)
+          ->GetDesc(&rsc);
+      gameExePChnD3D11State->pid3d11deviceC->CreateShaderResourceView(
+          state->subsTexture, &rsc, &state->subRscView);
+      state->csri =
+          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
     }
     in.close();
   }
 
-  return gameExeMgsMovieCPlayerPlayByIdReal(pThis, a2, id);
+  return gameExeMgsMovieCPlayerPlayByIdReal(pThis, (int)a1, id, a3);
 }
 
 int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
                                        char* movieFileName) {
   std::string subFileName;
+
   // note: case sensitive
   if (config["patch"]["fmv"].count("subs") == 1 &&
       config["patch"]["fmv"]["subs"].count(movieFileName) == 1)
@@ -343,10 +432,7 @@ int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
       std::string sub(in.tellg(), 0);
       in.seekg(0, std::ios::beg);
       in.read(&sub[0], sub.size());
-
-      CriManaModState_t* state = new CriManaModState_t;
-      stateMap.emplace(pThis, state);
-
+      state = std::make_shared<CriManaModState_t>();
       D3D11_TEXTURE2D_DESC desc;
       memset(&desc, 0, sizeof(D3D11_TEXTURE2D_DESC));
       lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0)
@@ -358,8 +444,8 @@ int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
       gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
           &desc, 0, &state->stagingTexture);
 
-      //state->csri =
-      //    csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
+      state->csri =
+          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
     }
     in.close();
   }
@@ -368,40 +454,24 @@ int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
 }
 
 int __fastcall mgsMovieCPlayerStopHook(void* pThis) {
-  if (stateMap.count(pThis) == 0) return gameExeMgsMovieCPlayerStopReal(pThis);
-
-  CriManaModState_t* state = stateMap[pThis];
-
-  if (state->csri) {
-    //csri_close(state->csri);
-  }
-  if (state->stagingTexture) {
-    state->stagingTexture->Release();
-  }
-  delete state;
-  stateMap.erase(pThis);
-
   return gameExeMgsMovieCPlayerStopReal(pThis);
 }
 
 int __fastcall mgsMovieCPlayerRenderHook(void* pThis) {
-  if (stateMap.count(pThis) == 0)
-    return gameExeMgsMovieCPlayerRenderReal(pThis);
-
-  CriManaModState_t* state = stateMap[pThis];
   CriManaFrameInfo* frameInfo;
   if (VideoPlayerObjVariant) {
-    MgsMoviePlayerRNDObj_t* obj = (MgsMoviePlayerRNDObj_t*)pThis;
+    mgsMoviePlayerObjCHN* obj = (mgsMoviePlayerObjCHN*)pThis;
     frameInfo = &obj->criManaFrameInfo;
   } else {
     MgsMoviePlayerObj_t* obj = (MgsMoviePlayerObj_t*)pThis;
     frameInfo = &obj->criManaFrameInfo;
   }
 
-  if (state->csri == NULL) return gameExeMgsMovieCPlayerRenderReal(pThis);
+  if (state==nullptr || state->csri == NULL) return gameExeMgsMovieCPlayerRenderReal(pThis);
 
-  double time = ((double)frameInfo->framerate_d * (double)frameInfo->frame_no) /
-                (double)frameInfo->framerate_n;
+  double time =
+      ((double)frameInfo->framerate_d * (double)frameInfo->frame_no) /
+      (double)frameInfo->framerate_n;
 
   state->keepLastFrame = frameInfo->frame_no == state->lastFrameNum;
 

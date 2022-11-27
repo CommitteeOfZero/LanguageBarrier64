@@ -135,6 +135,9 @@ void __fastcall sub_1400443B0(__int64 a1, __int64 a2, __int64 a3, int a4,
 
 extern "C" {
 inline uint8_t widths[lb::TOTAL_NUM_FONT_CELLS];
+inline uintptr_t gameExeDialogueLayoutWidthLookup1Return;
+inline uintptr_t gameExeDialogueLayoutWidthLookup2Return;
+inline uintptr_t gameExeDialogueLayoutWidthLookup3Return;
 }
 
 #endif  // !__GAMETEXT_H__

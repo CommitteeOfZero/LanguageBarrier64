@@ -47,7 +47,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='dinput8-Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -102,6 +102,7 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)contrib\include;$(DXSDK_DIR)Include;$(ProjectDir)contrib\freetype\include</IncludePath>
     <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(NETFXKitsDir)Lib\um\x86;$(ProjectDir)contrib\lib\Release;$(ProjectDir)contrib\lib\xy-vsfilter</LibraryPath>
     <ExecutablePath>$(VC_ExecutablePath_x86);$(WindowsSDK_ExecutablePath);$(VS_ExecutablePath);$(MSBuild_ExecutablePath);$(SystemRoot)\SysWow64;$(FxCopDir);$(PATH);$(ProjectDir)contrib\bin</ExecutablePath>
+    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\chnoah\HEAD NOAH</OutDir>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='dinput8-Release|Win32'">
     <VcpkgConfiguration>Release</VcpkgConfiguration>
@@ -226,6 +227,9 @@ endlocal</Command>
       <Optimization>MaxSpeed</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -281,6 +285,7 @@ endlocal</Command>
     <ClCompile Include="DialogueWordwrap.cpp" />
     <ClCompile Include="dinput8.cpp" />
     <ClCompile Include="GameTextCHN.cpp" />
+    <ClCompile Include="libass_csri.cpp" />
     <ClCompile Include="TextRendering.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameText.cpp" />

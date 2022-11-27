@@ -59,6 +59,7 @@ struct CHND3D11State {
   IDXGIAdapter* adapter;
   ID3D11Device* pid3d11deviceC;
   ID3D11DeviceContext* pid3d11devicecontext18;
+  ID3D11DeviceContext* pid3d11devicecontext20[2];
 };
 
 struct MgsD3D11State {
@@ -72,6 +73,8 @@ struct MgsD3D11State {
 };
 extern MgsD3D11State* gameExePMgsD3D11State;
 extern CHND3D11State* gameExePChnD3D11State;
+extern uintptr_t gameExeD3D11DeferredContextArray;
+extern uint32_t* gameExeD3D11DeferredContextIndex;
 
 struct __declspec(align(4)) SurfaceStructRN {
   uint8_t gap_0[4];
@@ -367,20 +370,47 @@ struct SurfaceWrapper {
       } break;
       case 2: {
         CHNSurface* surfaceArrayRND = (CHNSurface*)surfaceArray;
-        return surfaceArrayRND[id].field_148[subindex];
+        return surfaceArrayRND[id].texPtr[subindex];
 
       } break;
     }
 
   }
 
+
+    static ID3D11ShaderResourceView* getResourceView(void* surfaceArray, int id, int subindex) {
+    switch (game) {
+      case 0: {
+        SurfaceStructRN* surfaceArrayRN = (SurfaceStructRN*)surfaceArray;
+        return surfaceArrayRN[id].shaderRscView;
+      } break;
+      case 1: {
+        SurfaceStructRND* surfaceArrayRND = (SurfaceStructRND*)surfaceArray;
+        return surfaceArrayRND[id].shaderRscView;
+      } break;
+      case 2: {
+        CHNSurface* surfaceArrayRND = (CHNSurface*)surfaceArray;
+        return surfaceArrayRND[id].shaderRscView[subindex];
+
+      } break;
+    }
+  }
+
   static int width(void* surfaceArray, int id) {
-    if (!game) {
-      SurfaceStructRN* surfaceArrayRN = (SurfaceStructRN*)surfaceArray;
-      return surfaceArrayRN[id].width;
-    } else {
-      SurfaceStructRND* surfaceArrayRND = (SurfaceStructRND*)surfaceArray;
-      return surfaceArrayRND[id].width;
+    switch (game) {
+      case 0: {
+        SurfaceStructRN* surfaceArrayRN = (SurfaceStructRN*)surfaceArray;
+        return surfaceArrayRN[id].width;
+      } break;
+      case 1: {
+        SurfaceStructRND* surfaceArrayRND = (SurfaceStructRND*)surfaceArray;
+        return surfaceArrayRND[id].width;
+      } break;
+      case 2: {
+        CHNSurface* surfaceArrayRND = (CHNSurface*)surfaceArray;
+        return surfaceArrayRND[id].field_68;
+
+      } break;
     }
   }
 
@@ -498,12 +528,20 @@ struct SurfaceWrapper {
     }
   }
   static int height(void* surfaceArray, int id) {
-    if (!game) {
-      SurfaceStructRN* surfaceArrayRN = (SurfaceStructRN*)surfaceArray;
-      return surfaceArrayRN[id].height;
-    } else {
-      SurfaceStructRND* surfaceArrayRND = (SurfaceStructRND*)surfaceArray;
-      return surfaceArrayRND[id].height;
+    switch (game) {
+      case 0: {
+        SurfaceStructRN* surfaceArrayRN = (SurfaceStructRN*)surfaceArray;
+        return surfaceArrayRN[id].height;
+      } break;
+      case 1: {
+        SurfaceStructRND* surfaceArrayRND = (SurfaceStructRND*)surfaceArray;
+        return surfaceArrayRND[id].height;
+      } break;
+      case 2: {
+        CHNSurface* surfaceArrayRND = (CHNSurface*)surfaceArray;
+        return surfaceArrayRND[id].field_6A;
+
+      } break;
     }
   }
 };

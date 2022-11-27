@@ -91,7 +91,8 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
           uint32_t currentChar =
               page->glyphCol[i] +
               page->glyphRow[i] * TextRendering::Get().GLYPHS_PER_ROW;
-          wchar_t cChar = TextRendering::Get().fullCharMap[currentChar];
+          wchar_t cChar =
+              TextRendering::Get().characterInfo[currentChar].characterutf16;
           const auto glyphInfo =
               TextRendering::Get()
                   .getFont(page->glyphDisplayHeight[i] * 1.5f, false)

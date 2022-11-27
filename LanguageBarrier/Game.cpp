@@ -96,8 +96,6 @@ struct DDSFile {
   uint8_t dataStart;
 };
 
-
-
 __int64 __fastcall DrawSpriteInternal2Hook(__int64 a1, CHNSurface** a2,
                                            __int64 a3, __int64 a4, CVector4* a5,
                                            CVector4* a6, CVector4* a7, float a8,
@@ -369,11 +367,17 @@ CHND3D11State* gameExePChnD3D11State = NULL;
 
 static IDirect3D9Ex** gameExePpD3D9Ex = NULL;
 static D3DPRESENT_PARAMETERS* gameExePPresentParameters = NULL;
+typedef int(__fastcall* SystemFrameFlipProc)(void* a1);
 
+static SystemFrameFlipProc gameExeSystemFrameFlip = NULL;
+static SystemFrameFlipProc gameExeSystemFrameFlipReal = NULL;
 static uintptr_t gameExeTextureLoadInit1 = NULL;
 static uintptr_t gameExeTextureLoadInit2 = NULL;
 static uintptr_t gameExeMpkMount = NULL;
 static uintptr_t gameExePCurrentBgm = NULL;
+uintptr_t gameExeD3D11DeferredContextArray = NULL;
+uint32_t* gameExeD3D11DeferredContextIndex = NULL;
+
 static uintptr_t gameExePLoopBgm = NULL;
 static uintptr_t gameExePShouldPlayBgm = NULL;
 // scroll height is +6A78
@@ -388,6 +392,24 @@ CRIFileInfoData* criFileInfo;
 ShaderInfoCHN* pixelShaderArray = nullptr;
 ShaderInfoCHN* pixelShaderArray2 = nullptr;
 
+static std::chrono::high_resolution_clock c;
+std::chrono::time_point<std::chrono::steady_clock> old;
+int Framelimiter(void* a1) {
+  auto now = c.now();
+
+  using fps_60 = std::chrono::duration<double, std::ratio<1, 60>>;
+
+  if (!GetAsyncKeyState('B')) {
+    while (fps_60(now - old).count() < 1) {
+      now = c.now();
+    }
+    old = now;
+  }
+  auto res = gameExeSystemFrameFlipReal(a1);
+  ;
+  return res;
+}
+
 int* gameExeScrWork = (int*)NULL;
 
 namespace lb {
@@ -395,8 +417,7 @@ namespace lb {
 int SurfaceWrapper::game = 0;
 
 int __cdecl earlyInitHook(int unk0, int unk1);
-int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData * mpk,
-                                int fileId);
+int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk, int fileId);
 int __fastcall mpkFopenByIdHook(void* pThis, void* EDX, mpkObject* mpk,
                                 int fileId, int unk3);
 int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused);
@@ -450,8 +471,7 @@ void gameInit() {
     surfaceArray = (void*)surfPtr;
   }
 
-
-    if (config["gamedef"]["signatures"]["game"].count("CriFileInfo") == 1) {
+  if (config["gamedef"]["signatures"]["game"].count("CriFileInfo") == 1) {
     auto criFileInfo2 = sigScan("game", "CriFileInfo");
     criFileInfo = (CRIFileInfoData*)criFileInfo2;
   }
@@ -465,6 +485,16 @@ void gameInit() {
     pixelShaderArray2 = (ShaderInfoCHN*)pixelShaderPtr;
   }
   gameExeEarlyInit = (EarlyInitProc)sigScan("game", "earlyInit");
+
+  if (config["gamedef"]["signatures"]["game"].count(
+          "D3D11DeferredContextArray") == 1)
+    gameExeD3D11DeferredContextArray =
+        (uintptr_t)sigScan("game", "D3D11DeferredContextArray");
+  if (config["gamedef"]["signatures"]["game"].count(
+          "D3D11DeferredContextIndex") == 1)
+    gameExeD3D11DeferredContextIndex =
+        (uint32_t*)sigScan("game", "D3D11DeferredContextIndex");
+
   if (config["gamedef"]["signatures"]["game"].count("useOfPCurrentBgm") == 1)
     gameExePCurrentBgm = sigScan("game", "useOfPCurrentBgm");
   if (config["gamedef"]["signatures"]["game"].count("useOfPLoopBgm") == 1)
@@ -478,6 +508,13 @@ void gameInit() {
                               (uintptr_t*)&gameExeDrawSpriteInternal2,
                               (LPVOID)DrawSpriteInternal2Hook,
                               (LPVOID*)&gameExeDrawSpriteInternal2Real))
+      return;
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("SystemFrameFlip") == 1) {
+    if (!scanCreateEnableHook(
+            "game", "SystemFrameFlip", (uintptr_t*)&gameExeSystemFrameFlip,
+            (LPVOID)Framelimiter, (LPVOID*)&gameExeSystemFrameFlipReal))
       return;
   }
 
@@ -654,8 +691,8 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
       uint64_t meow = sigScan("game", "useOfChnD3D11State");
       uint32_t meow2 = *(uint32_t*)meow;
       scanCreateEnableHook(
-              "game", "openCPKFileById", (uintptr_t*)&gameExeCpkFopenById,
-              (LPVOID)&cpkFopenByIdHook, (LPVOID*)&gameExeCpkFopenByIdReal);
+          "game", "openCPKFileById", (uintptr_t*)&gameExeCpkFopenById,
+          (LPVOID)&cpkFopenByIdHook, (LPVOID*)&gameExeCpkFopenByIdReal);
 
       gameExePChnD3D11State = (CHND3D11State*)(*(uint32_t*)meow + meow + 8);
     }
@@ -687,87 +724,69 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
         gameExeMountArchiveRNDReal(C0DATA_MOUNT_ID, "languagebarrier\\c0data",
                                    0, 1, 0);
       } else {
-        mountArchiveHookCHN(
-            C0DATA_MOUNT_ID, 0, "c0data", 0,
-            "c0data", 0x800000u, 0, 0i64, 0);
+        mountArchiveHookCHN(C0DATA_MOUNT_ID, 0, "c0data", 0, "c0data",
+                            0x800000u, 0, 0i64, 0);
       };
       LanguageBarrierLog("c0data mounted");
 
       c0dataCpk = &criFileInfo[C0DATA_MOUNT_ID];
 
-           if (!scanCreateEnableHook(
-              "game", "mpkFopenById", (uintptr_t*)&gameExeCpkFopenById,
-              (LPVOID)&cpkFopenByIdHook, (LPVOID*)&gameExeCpkFopenByIdReal))
-        return retval;
+      if (config["patch"]["redoDialogueWordwrap"].get<bool>() == true) {
+        dialogueWordwrapInit();
+      }
 
+      if (config["patch"].count("RNEMouseInput") == 1 &&
+          config["patch"]["RNEMouseInput"].get<bool>() == true) {
+        rne::customInputInit();
+      }
 
-      if (!scanCreateEnableHook(
-              "game", "mgsFileOpen64", (uintptr_t*)&gameExeMgsFileOpen64,
-              (LPVOID)&mgsFileOpenHook64, (LPVOID*)&gameExeMgsFileOpenReal64))
-        return retval;
-    } else {
-      c0dataMpk = gameMountMpk("C0DATA", lbDir.c_str(), "c0data.mpk");
-      LanguageBarrierLog("c0data.mpk mounted");
+      if (config["patch"].count("RNDMouseInput") == 1 &&
+          config["patch"]["RNDMouseInput"].get<bool>() == true) {
+        rnd::customInputInit();
+      }
 
-      if (!scanCreateEnableHook(
-              "game", "mpkFopenById", (uintptr_t*)&gameExeMpkFopenById,
-              (LPVOID)&mpkFopenByIdHook, (LPVOID*)&gameExeMpkFopenByIdReal))
-        return retval;
+      if (config["patch"].count("RNENameTagFix") == 1 &&
+          config["patch"]["RNENameTagFix"].get<bool>() == true) {
+        float* dotX = (float*)sigScan("game", "useOfRNENameTagDotX");
+        DWORD oldProtect;
+        VirtualProtect(dotX, sizeof(float), PAGE_READWRITE, &oldProtect);
+        *dotX = 1638.0f;
+        VirtualProtect(dotX, sizeof(float), oldProtect, &oldProtect);
+      }
+
+      if (config["patch"].count("rndMiscFixes") == 1 &&
+          config["patch"]["rndMiscFixes"].get<bool>() == true) {
+        // Make config voice names area wider
+        float* width = (float*)sigScan("game", "useOfRNDConfigVoiceNameWidth");
+        DWORD oldProtect;
+        VirtualProtect(width, sizeof(float), PAGE_READWRITE, &oldProtect);
+        *width = 311.0f;
+        VirtualProtect(width, sizeof(float), oldProtect, &oldProtect);
+        width =
+            (float*)sigScan("game", "useOfRNDConfigVoiceNameUnderlineWidth");
+        VirtualProtect(width, sizeof(float), PAGE_READWRITE, &oldProtect);
+        *width = 515.0f;
+        VirtualProtect(width, sizeof(float), oldProtect, &oldProtect);
+      }
+
+      if (config["patch"].count("RNERenderTargetClearColourFix") == 1 &&
+          config["patch"]["RNERenderTargetClearColourFix"].get<bool>() ==
+              true) {
+        float* r = (float*)sigScan("game", "useOfRNEClearColourR");
+        DWORD oldProtect;
+        VirtualProtect(r, sizeof(float), PAGE_READWRITE, &oldProtect);
+        *r = 0.0f;
+        VirtualProtect(r, sizeof(float), oldProtect, &oldProtect);
+      }
+
+      if (config["patch"].count("RNEAddOriginalOPToMovieLibrary") == 1 &&
+          config["patch"]["RNEAddOriginalOPToMovieLibrary"].get<bool>() ==
+              true) {
+        int* ids = (int*)sigScan("game", "useOfRNEMovieLibraryIndexes");
+        ids[1] = 1;
+        ids[2] = 22;
+      }
     }
-
-    if (config["patch"]["redoDialogueWordwrap"].get<bool>() == true) {
-      dialogueWordwrapInit();
-    }
-
-    if (config["patch"].count("RNEMouseInput") == 1 &&
-        config["patch"]["RNEMouseInput"].get<bool>() == true) {
-      rne::customInputInit();
-    }
-
-    if (config["patch"].count("RNDMouseInput") == 1 &&
-        config["patch"]["RNDMouseInput"].get<bool>() == true) {
-      rnd::customInputInit();
-    }
-
-    if (config["patch"].count("RNENameTagFix") == 1 &&
-        config["patch"]["RNENameTagFix"].get<bool>() == true) {
-      float* dotX = (float*)sigScan("game", "useOfRNENameTagDotX");
-      DWORD oldProtect;
-      VirtualProtect(dotX, sizeof(float), PAGE_READWRITE, &oldProtect);
-      *dotX = 1638.0f;
-      VirtualProtect(dotX, sizeof(float), oldProtect, &oldProtect);
-    }
-
-    if (config["patch"].count("rndMiscFixes") == 1 &&
-        config["patch"]["rndMiscFixes"].get<bool>() == true) {
-      // Make config voice names area wider
-      float* width = (float*)sigScan("game", "useOfRNDConfigVoiceNameWidth");
-      DWORD oldProtect;
-      VirtualProtect(width, sizeof(float), PAGE_READWRITE, &oldProtect);
-      *width = 311.0f;
-      VirtualProtect(width, sizeof(float), oldProtect, &oldProtect);
-      width = (float*)sigScan("game", "useOfRNDConfigVoiceNameUnderlineWidth");
-      VirtualProtect(width, sizeof(float), PAGE_READWRITE, &oldProtect);
-      *width = 515.0f;
-      VirtualProtect(width, sizeof(float), oldProtect, &oldProtect);
-    }
-
-    if (config["patch"].count("RNERenderTargetClearColourFix") == 1 &&
-        config["patch"]["RNERenderTargetClearColourFix"].get<bool>() == true) {
-      float* r = (float*)sigScan("game", "useOfRNEClearColourR");
-      DWORD oldProtect;
-      VirtualProtect(r, sizeof(float), PAGE_READWRITE, &oldProtect);
-      *r = 0.0f;
-      VirtualProtect(r, sizeof(float), oldProtect, &oldProtect);
-    }
-
-    if (config["patch"].count("RNEAddOriginalOPToMovieLibrary") == 1 &&
-        config["patch"]["RNEAddOriginalOPToMovieLibrary"].get<bool>() == true) {
-      int* ids = (int*)sigScan("game", "useOfRNEMovieLibraryIndexes");
-      ids[1] = 1;
-      ids[2] = 22;
-    }
-
   } catch (std::exception& e) {
     MessageBoxA(NULL, e.what(), "LanguageBarrier exception", MB_ICONSTOP);
   }
@@ -775,9 +794,7 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
   return retval;
 }
 
-
-int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk,
-                                int fileId) {
+int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk, int fileId) {
   char* mpkFilename = (char*)&mpk->name;
   std::stringstream logstr;
   logstr << "cpkFopenById(" << mpkFilename << ", 0x" << std::hex << fileId
@@ -801,8 +818,8 @@ int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk,
       } else if (red.type() == json::value_t::array) {
         int archiveId = red[0].get<int>();
         int newFileId = red[1].get<int>();
-        logstr << " redirected to " << criFileInfo[archiveId].name
-               << ", 0x" << std::hex << newFileId;
+        logstr << " redirected to " << criFileInfo[archiveId].name << ", 0x"
+               << std::hex << newFileId;
 #ifdef _DEBUG
         LanguageBarrierLog(logstr.str());
 #endif
@@ -855,20 +872,6 @@ int __fastcall mpkFopenByIdHook(void* pThis, void* EDX, mpkObject* mpk,
 }
 
 std::string mountArchiveHookPart(const char* mountPoint) {
-  if (config["patch"].count("archiveRedirection") == 1 &&
-      config["patch"]["archiveRedirection"].count(mountPoint) == 1) {
-    std::stringstream newPath;
-    newPath
-        << "languagebarrier\\"
-        << config["patch"]["archiveRedirection"][mountPoint].get<std::string>();
-
-    std::stringstream logstr;
-    logstr << "redirecting physical fopen " << mountPoint << " to "
-           << newPath.str();
-    LanguageBarrierLog(logstr.str());
-
-    return newPath.str();
-  }
 
   return mountPoint;
 }
@@ -901,45 +904,67 @@ int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
                                  int unused) {
   char* fileName = pThis->fileName;
 
+  int fileId = pThis->unsigned_int10;
+  char* archiveName = pThis->qword140->name;
+  auto file = std::filesystem::path(std::string(fileName));
 
-    int fileId = pThis->unsigned_int10;
-    char* archiveName = pThis->qword140->name;
-  
-    if (pThis->qword140 && (fileId > 0 || (fileName && fileName[0] != '\0')))
-    {
-      std::stringstream logstr;
-      logstr << "mgsFileOpen(" << archiveName << ", 0x" << std::hex << fileId
-             << ")" << std::dec;
-  #ifdef _DEBUG
-      LanguageBarrierLog(logstr.str());
-  #endif
-      if (config["patch"].count("fileRedirection") == 1 &&
-          config["patch"]["fileRedirection"].count(archiveName) > 0) {
-        std::string key;
-        if (fileId == -1) {
-          key = fileName;
-        } else {
-          key = std::to_string(fileId);
-        }
-        if (config["patch"]["fileRedirection"][archiveName].count(key) == 1) {
-          auto red = config["patch"]["fileRedirection"][archiveName][key];
-          if (red.type() == json::value_t::number_integer ||
-              red.type() == json::value_t::number_unsigned) {
-            int newFileId = red.get<int>();
-            logstr << " redirected to c0data, 0x" << std::hex << newFileId;
-  #ifdef _DEBUG
-            LanguageBarrierLog(logstr.str());
-  #endif
-            pThis->unsigned_int10 = newFileId;
-            pThis->qword140 = c0dataCpk;
-    //        if (fileId == -1) pThis->loadMode = 2;
-            return gameExeMgsFileOpenReal64(pThis,dummy, unused);
-          }
+  auto stem = file.stem();
+  auto ext = file.extension();
+  auto path = file.parent_path();
+
+  if (config["patch"].count("archiveRedirection") == 1 &&
+      config["patch"]["archiveRedirection"].count(stem) == 1) {
+    std::filesystem::path newPath =
+        path / "../languagebarrier" /
+        config["patch"]["archiveRedirection"][stem.u8string()]
+            .get<std::string>();
+    newPath = newPath.lexically_normal();
+    newPath.replace_extension(".cpk");
+    strncpy(pThis->fileName, (const char*)newPath.u8string().c_str(), 264);
+
+    std::stringstream logstr;
+    logstr << "redirecting physical fopen " << stem << " to "
+           << newPath.u8string();
+    LanguageBarrierLog(logstr.str());
+  }
+
+  if (stem == "mes01") {
+  }
+
+  if (pThis->qword140 && (fileId > 0 || (fileName && fileName[0] != '\0'))) {
+    std::stringstream logstr;
+    logstr << "mgsFileOpen(" << archiveName << ", 0x" << std::hex << fileId
+           << ")" << std::dec;
+#ifdef _DEBUG
+    LanguageBarrierLog(logstr.str());
+#endif
+    if (config["patch"].count("fileRedirection") == 1 &&
+        config["patch"]["fileRedirection"].count(archiveName) > 0) {
+      std::string key;
+      if (fileId == -1) {
+        key = fileName;
+      } else {
+        key = std::to_string(fileId);
+      }
+      if (config["patch"]["fileRedirection"][archiveName].count(key) == 1) {
+        auto red = config["patch"]["fileRedirection"][archiveName][key];
+        if (red.type() == json::value_t::number_integer ||
+            red.type() == json::value_t::number_unsigned) {
+          int newFileId = red.get<int>();
+          logstr << " redirected to c0data, 0x" << std::hex << newFileId;
+#ifdef _DEBUG
+          LanguageBarrierLog(logstr.str());
+#endif
+          pThis->unsigned_int10 = newFileId;
+          pThis->qword140 = c0dataCpk;
+          //        if (fileId == -1) pThis->loadMode = 2;
+          return gameExeMgsFileOpenReal64(pThis, dummy, unused);
         }
       }
     }
+  }
 
-  auto ret =  gameExeMgsFileOpenReal64(pThis, dummy, unused);
+  auto ret = gameExeMgsFileOpenReal64(pThis, dummy, unused);
   return ret;
 }
 
