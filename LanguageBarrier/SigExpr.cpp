@@ -28,7 +28,7 @@ void SigExprLexer::consumeToken() {
       pos++;
     } else if (std::isdigit(input.at(pos))) {
       char* end;
-      currentToken = {Number, std::strtoull(input.c_str() + pos, &end, 0)};
+      currentToken = {Number, (uintptr_t)std::strtoull(input.c_str() + pos, &end, 0)};
       pos = end - input.c_str();
     } else if (pos + 2 < input.size() &&
                _strnicmp(input.c_str() + pos, "ptr", 3) == 0) {

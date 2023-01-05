@@ -59,32 +59,31 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
   CHNDialoguePage_t* page = &gameExeDialoguePages_CHNDialoguePage_t[pageNumber];
  
   bool newline = true;
-  float displayStartX = (page->charDisplayX[0] + xOffset) * lb::COORDS_MULTIPLIER;
-  float displayStartY = (page->charDisplayY[0] + yOffset) * lb::COORDS_MULTIPLIER;
+  float displayStartY = 0;
   int firstCharacter = 0;
   auto  meow =  0x11984i64 * pageNumber;
   for (int i = 0; i < page->pageLength; i++) {
     if (fontNumber == page->fontNumber[i]) {
       int glyphSize = page->glyphDisplayHeight[i];
-      if (i == 0 ||
-          i > 0 && (page->charDisplayY[i] - page->charDisplayY[i - 1]) >
-                       page->glyphDisplayHeight[i]) {
-        newline = true;
-        firstCharacter = i;
-      } else
-        newline = false;
-      if (newline == false) {
-        __int16 fontSize = page->glyphDisplayHeight[i] * 1.5f;
-        uint32_t currentChar =
-            page->glyphCol[i - 1] +
-            page->glyphRow[i - 1] * TextRendering::Get().GLYPHS_PER_ROW;
-        auto glyphInfo = TextRendering::Get()
-                             .getFont(fontSize, false)
-                             ->getGlyphInfo(currentChar, Regular);
-        displayStartX += glyphInfo->advance;
-      } else {
-        displayStartX = (page->charDisplayX[i] + xOffset) * lb::COORDS_MULTIPLIER;
-      }
+  /*    if (i == 0 ||
+          i > 0 && (page->charDisplayY[i] >
+                    page->charDisplayY[i - 1])) {
+      } else*/
+      //if (newline == false) {
+      //  __int16 fontSize = page->glyphDisplayHeight[i] * 1.5f;
+      //  uint32_t currentChar =
+      //      page->glyphCol[i - 1] +
+      //      page->glyphRow[i - 1] * TextRendering::Get().GLYPHS_PER_ROW;
+      //  auto glyphInfo = TextRendering::Get()
+      //                       .getFont(fontSize, false)
+      //                       ->getGlyphInfo(currentChar, Regular);
+      //  displayStartX += glyphInfo->advance;
+      //} else {
+      //  displayStartX = (page->charDisplayX[i] + xOffset) * lb::COORDS_MULTIPLIER;
+      //}
+      float displayStartX =
+          (page->charDisplayX[i] + xOffset) * lb::COORDS_MULTIPLIER;
+
       uint32_t _opacity = (page->charDisplayOpacity[i] * opacity) >> 8;
       if (page->charOutlineColor[i] != -1) {
         {
@@ -97,7 +96,7 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
               TextRendering::Get()
                   .getFont(page->glyphDisplayHeight[i] * 1.5f, false)
                   ->getGlyphInfo(currentChar, FontType::Regular);
-          displayStartY = (page->charDisplayY[firstCharacter] + yOffset) * 1.5f;
+          displayStartY = (page->charDisplayY[i] + yOffset) * 1.5f;
           __int16 fontSize = page->glyphDisplayHeight[i] * 1.5f;
           float yOffset = -6.0f * fontSize / 48.0f;
           TextRendering::Get().replaceFontSurface(fontSize);
@@ -105,8 +104,8 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
             lb::drawSpriteCHNHook(
                 TextRendering::Get().FONT_TEXTURE_ID, glyphInfo->x,
                 glyphInfo->y, glyphInfo->width, glyphInfo->rows,
-                round(displayStartX + glyphInfo->left+1.5),
-                round(yOffset + displayStartY + fontSize - glyphInfo->top+1.5),
+                round(displayStartX + glyphInfo->left+2),
+                round(yOffset + displayStartY + fontSize - glyphInfo->top+2),
                 page->charOutlineColor[i], _opacity);
         }
       }
@@ -117,7 +116,7 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
         auto glyphInfo = TextRendering::Get()
                              .getFont(page->glyphDisplayHeight[i] * 1.5f, false)
                              ->getGlyphInfo(currentChar, FontType::Regular);
-        displayStartY = (page->charDisplayY[firstCharacter] + yOffset) * 1.5f;
+        displayStartY = (page->charDisplayY[i] + yOffset) * 1.5f;
         float xRatio = ((float)page->glyphDisplayWidth[i] /
                         (float)page->glyphOrigWidth[i]);
         TextRendering::Get().replaceFontSurface(page->glyphDisplayHeight[i] *

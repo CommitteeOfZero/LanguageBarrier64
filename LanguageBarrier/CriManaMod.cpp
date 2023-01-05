@@ -288,7 +288,7 @@ void drawSubs(bool deferred) {
       csri_frame frame;
       frame.planes[0] = imagePtr;
       frame.strides[0] = rsc.RowPitch;
-      frame.pixfmt = CSRI_F_BGR_;
+      frame.pixfmt = CSRI_F_RGB_;
       csri_fmt format = {
           frame.pixfmt,
           lb::SurfaceWrapper::width(surfaceArray, RENDER_TARGET_SURF_ID),
@@ -403,8 +403,8 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* a1, int id,
           csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
     }
     in.close();
-  }
-
+  } else
+    state = nullptr;
   return gameExeMgsMovieCPlayerPlayByIdReal(pThis, (int)a1, id, a3);
 }
 

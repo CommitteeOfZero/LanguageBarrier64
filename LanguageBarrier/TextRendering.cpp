@@ -10,6 +10,9 @@
 #include <freetype/ftmodapi.h>
 #include "LanguageBarrier.h"
 #include "GameText.h"
+
+#define FT2_SCALING 0.85
+
 void to_json(nlohmann::json& j, const FontGlyph& p) {
   j = nlohmann::json{{"a", p.advance}, {"x", p.x},    {"y", p.y},
                      {"t", p.top},     {"l", p.left}, {"r", p.rows},
@@ -174,7 +177,7 @@ void TextRendering::buildFont(int fontSize, bool measure) {
 
   int cellSize = FONT_CELL_SIZE / num;
 
-  FT_Set_Pixel_Sizes(this->ftFace, 0, fontSize / num);
+  FT_Set_Pixel_Sizes(this->ftFace, 0, fontSize * FT2_SCALING / num);
 
   if (this->fontData.find(fontSize / num) == this->fontData.end()) {
     this->fontData[fontSize / num] = FontData();
@@ -325,6 +328,8 @@ void TextRendering::initFT(int fontSize) {
     if (FT_Init_FreeType(&this->ftLibrary)) {
     }
   }
+
+  fontSize *= FT2_SCALING;
 
   FT_Init_FreeType(&ftLibrary);
 
@@ -566,6 +571,8 @@ FontData* TextRendering::getFont(int height, bool measure) {
 }
 
 void TextRendering::replaceFontSurface(int size) {
+
+
   if (currentSize == size) return;
   auto currentFontData = this->getFont(size, false);
 

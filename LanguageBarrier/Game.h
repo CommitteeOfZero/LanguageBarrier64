@@ -316,6 +316,7 @@ GAME_H_IMPORT SetFlagProc gameExeSetFlag;
 GAME_H_IMPORT ChkViewDicProc gameExeChkViewDic;
 
 GAME_H_IMPORT int* gameExeScrWork;
+GAME_H_IMPORT int* gameExeCurrentLanguage;
 
 
 

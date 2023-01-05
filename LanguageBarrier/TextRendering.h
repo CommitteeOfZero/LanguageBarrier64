@@ -138,7 +138,7 @@ struct TextRendering {
   FT_Stroker stroker;
   int FONT_CELL_SIZE = 66;
   const int GLYPHS_PER_ROW = 64;
-  int NUM_GLYPHS = 351;
+  int NUM_GLYPHS = 400;
   std::string fontPath;
   bool enabled = false;
   void disableReplacement();

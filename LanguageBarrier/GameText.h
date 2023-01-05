@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include "LanguageBarrier.h"
-
+#include <xmmintrin.h>
 #ifndef GAMETEXT_H_IMPORT
 #define GAMETEXT_H_IMPORT extern
 #endif
@@ -108,9 +108,9 @@ int __cdecl drawSpriteCHNHook(int textureId, float spriteX, float spriteY,
                            float spriteWidth, float spriteHeight,
                            float displayX, float displayY, int color,
                            int opacity);
-void __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
-                              char* a5, unsigned int a6, unsigned int color,
-                              float a8, float a9, unsigned int a11);
+__m128 __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
+                                char* a5, unsigned int a6, unsigned int a7,
+                                float a8, float a9, unsigned int a11);
 
 __int64 __fastcall drawSpriteMaskCHNHook(__int64 a1, __int64 a2, float a3,
                                          float a4, float a5, float a6, float a7,
@@ -130,6 +130,8 @@ void drawSpriteMaskCHNInternalHook(__int64 a1, CHNSurface** a2, __int64 a3,
 void __fastcall sub_1400443B0(__int64 a1, __int64 a2, __int64 a3, int a4,
                                  int a5, int a6, int a7);
 
+__int64 __fastcall ChatLayout(unsigned int a1, char* a2, unsigned int a3);
+__int64 __fastcall ChatLayout2(char* a2, unsigned int a1, unsigned int a3);
 }  // namespace lb
 
 
@@ -138,6 +140,15 @@ inline uint8_t widths[lb::TOTAL_NUM_FONT_CELLS];
 inline uintptr_t gameExeDialogueLayoutWidthLookup1Return;
 inline uintptr_t gameExeDialogueLayoutWidthLookup2Return;
 inline uintptr_t gameExeDialogueLayoutWidthLookup3Return;
+inline uintptr_t gameExeDialogueLayoutWidthLookup4Return;
+inline uintptr_t gameExeLineHeight;
+inline int gameExeTipContentHeight;
+inline uintptr_t gameExeSetTipContentHeightReturn;
+inline uintptr_t gameExeSetTipContentHeight2Return;
+inline uintptr_t gameExeSkipCHN;
+inline uintptr_t gameExeSkipCHNOffset;
+
+inline uintptr_t gameExeRsi;
 }
 
 #endif  // !__GAMETEXT_H__

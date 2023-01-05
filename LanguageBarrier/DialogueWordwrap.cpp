@@ -59,7 +59,7 @@ void dlgWordwrapGenerateMaskHook(int unk0);
 void dialogueWordwrapInit() {
   uintptr_t baseAddress = (uintptr_t)GetModuleHandle(0);
   gameExeDlgWordwrapString =
-      (uint16_t*)(sigScan("game", "useOfDlgWordwrapString") +baseAddress );
+      (uint16_t*)(sigScan("game", "useOfDlgWordwrapString") + baseAddress);
   gameExeDlgWordwrapLength = (int*)sigScan("game", "useOfDlgWordwrapLength");
   gameExeDlgWordwrapMask =
       (uint8_t*)(sigScan("game", "useOfDlgWordwrapMask") + baseAddress);
@@ -119,6 +119,7 @@ void dlgWordwrapGenerateMaskHook(int unk0) {
 
   while (pos < *gameExeDlgWordwrapLength) {
     auto curr = gameExeDlgWordwrapString[pos];
+
     // s[n] is a control sequence -> mask[n] = other
     if (curr >= 0x8000) {
       uint8_t curMask = mask_bytes::other;
@@ -157,6 +158,10 @@ void dlgWordwrapGenerateMaskHook(int unk0) {
       // never break lines inside ruby text
       gameExeDlgWordwrapMask[pos] = mask_bytes::letter;
       pos++;
+    } else if (is_type1_punct(curr) && is_type2_punct(curr)) {
+      gameExeDlgWordwrapMask[pos] =
+          mask_bytes::type1_punct | mask_bytes::type2_punct;
+      pos++;
     } else if (is_type1_punct(curr)) {
       gameExeDlgWordwrapMask[pos] = mask_bytes::type1_punct;
       pos++;
@@ -181,6 +186,8 @@ void dlgWordwrapGenerateMaskHook(int unk0) {
     if (gameExeDlgWordwrapMask[i] != mask_bytes::linebreak)
       gameExeDlgWordwrapMask[i] = mask_bytes::letter;
   }
+
+
 
   return;
 }

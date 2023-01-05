@@ -21,6 +21,7 @@
 #include "CustomInputRNE.h"
 #include "CustomInputRND.h"
 #include <regex>
+#include <thread>
 
 typedef int(__cdecl* EarlyInitProc)(int unk0, int unk1);
 static EarlyInitProc gameExeEarlyInit = NULL;
@@ -352,6 +353,12 @@ typedef struct {
 static CPlayer* gameExeAudioPlayers = NULL;
 
 typedef int(__thiscall* ReadOggMetadataProc)(CPlayer* pThis);
+typedef int(__thiscall* TipsDataInitProc)(int a1, unsigned __int8* a2,
+                                          unsigned __int8* a3);
+
+static TipsDataInitProc gameExeTipsDataInit;
+static TipsDataInitProc gameExeTipsDataInitReal;
+
 static ReadOggMetadataProc gameExeReadOggMetadata = NULL;
 static ReadOggMetadataProc gameExeReadOggMetadataReal = NULL;
 
@@ -377,7 +384,9 @@ static uintptr_t gameExeMpkMount = NULL;
 static uintptr_t gameExePCurrentBgm = NULL;
 uintptr_t gameExeD3D11DeferredContextArray = NULL;
 uint32_t* gameExeD3D11DeferredContextIndex = NULL;
-
+uint8_t* gameExeBGMVolumeReductionFlag = NULL;
+uint8_t* gameExeTipsCountOffset[2] = {0, 0};
+uint32_t* gameExeEPMax = NULL;
 static uintptr_t gameExePLoopBgm = NULL;
 static uintptr_t gameExePShouldPlayBgm = NULL;
 // scroll height is +6A78
@@ -394,19 +403,49 @@ ShaderInfoCHN* pixelShaderArray2 = nullptr;
 
 static std::chrono::high_resolution_clock c;
 std::chrono::time_point<std::chrono::steady_clock> old;
+
+void preciseSleep(double seconds) {
+  using namespace std;
+  using namespace std::chrono;
+
+  static double estimate = 5e-3;
+  static double mean = 5e-3;
+  static double m2 = 0;
+  static int64_t count = 1;
+
+  while (seconds > estimate) {
+    auto start = high_resolution_clock::now();
+    this_thread::sleep_for(milliseconds(1));
+    auto end = high_resolution_clock::now();
+
+    double observed = (end - start).count() / 1e9;
+    seconds -= observed;
+
+    ++count;
+    double delta = observed - mean;
+    mean += delta / count;
+    m2 += delta * (observed - mean);
+    double stddev = sqrt(m2 / (count - 1));
+    estimate = mean + stddev;
+  }
+
+  // spin lock
+  auto start = high_resolution_clock::now();
+  while ((high_resolution_clock::now() - start).count() / 1e9 < seconds)
+    ;
+}
+
 int Framelimiter(void* a1) {
   auto now = c.now();
 
   using fps_60 = std::chrono::duration<double, std::ratio<1, 60>>;
-
+  double timeSpan = 1 - fps_60(now - old).count();
   if (!GetAsyncKeyState('B')) {
-    while (fps_60(now - old).count() < 1) {
-      now = c.now();
-    }
-    old = now;
+    if (timeSpan < 1 && timeSpan > 0) preciseSleep(timeSpan / 60.0f);
   }
+  old = c.now();
   auto res = gameExeSystemFrameFlipReal(a1);
-  ;
+
   return res;
 }
 
@@ -444,6 +483,19 @@ int __cdecl mountArchiveHookRNE(int id, const char* mountPoint,
                                 const char* archiveName, int unk01);
 int __cdecl mountArchiveHookRND(int id, const char* mountPoint, int unk01,
                                 int unk02, int unk03);
+
+unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
+                                             unsigned __int8* a3);
+
+unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
+                                             unsigned __int8* a3) {
+  auto val = gameExeTipsDataInitReal(a1, a2, a3);
+  lb::write_perms(gameExeTipsCountOffset[0], (uint8_t)(*gameExeEPMax - 0x30),
+                  true);
+  lb::write_perms(gameExeTipsCountOffset[1], (uint8_t)(*gameExeEPMax - 0x30),
+                  true);
+  return val;
+}
 
 void gameInit() {
   SetProcessDPIAware();
@@ -494,6 +546,44 @@ void gameInit() {
           "D3D11DeferredContextIndex") == 1)
     gameExeD3D11DeferredContextIndex =
         (uint32_t*)sigScan("game", "D3D11DeferredContextIndex");
+
+  if (config["gamedef"]["signatures"]["game"].count("BGMVolumeReductionFlag") ==
+      1) {
+    gameExeBGMVolumeReductionFlag =
+        (uint8_t*)sigScan("game", "BGMVolumeReductionFlag");
+    // Patch 0x74 (jz) to jmp (0xEB)
+    lb::write_perms<uint8_t>(gameExeBGMVolumeReductionFlag, 0xEB, true);
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count(
+          "VerticalCharacterOffset") == 1) {
+    auto VerticalCharacterOffset =
+        (uint8_t*)sigScan("game", "VerticalCharacterOffset");
+    // Patch 0x74 (jnb) to jmp (0xEB)
+    lb::write_perms<uint8_t>(VerticalCharacterOffset, 0xEB, true);
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("ShortcutHoverFix") == 1) {
+    auto ShortcutHoverFix = (uint16_t*)sigScan("game", "ShortcutHoverFix");
+    // Insert NOPs
+    lb::memset_perms(ShortcutHoverFix, 0x90, 5);
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("TipsCountOffset") == 1) {
+    gameExeTipsCountOffset[0] = (uint8_t*)sigScan("game", "TipsCountOffset");
+    // Patch 0x74 (jz) to jmp (0xEB)
+  }
+  if (config["gamedef"]["signatures"]["game"].count("TipsCountOffset2") == 1) {
+    gameExeTipsCountOffset[1] = (uint8_t*)sigScan("game", "TipsCountOffset2");
+    // Patch 0x74 (jz) to jmp (0xEB)
+  }
+  if (config["gamedef"]["signatures"]["game"].count("TipsCountOffset") == 1) {
+    scanCreateEnableHook("game", "TipsDataInit",
+                         (uintptr_t*)&gameExeTipsDataInit, TipsDataInitHook,
+                         (LPVOID*)&gameExeTipsDataInitReal);
+    // Patch 0x74 (jz) to jmp (0xEB)
+  }
+  gameExeEPMax = (uint32_t*)sigScan("game", "EPMax");
 
   if (config["gamedef"]["signatures"]["game"].count("useOfPCurrentBgm") == 1)
     gameExePCurrentBgm = sigScan("game", "useOfPCurrentBgm");
@@ -703,7 +793,9 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
       TextRendering::Get().enableReplacement();
     }
 
-    gameExeScrWork = (int*)sigScan("game", "useOfScrWork");
+    gameExeScrWork = *(int**)sigScan("game", "useOfScrWork");
+    gameExeCurrentLanguage = (int*)sigScan("game", "currentLanguage");
+
     scanCreateEnableHook(
         "game", "exitApplication", (uintptr_t*)&gameExeCloseAllSystems,
         (LPVOID)closeAllSystemsHook, (LPVOID*)&gameExeCloseAllSystemsReal);
@@ -805,6 +897,7 @@ int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk, int fileId) {
   if (config["patch"].count("fileRedirection") == 1 &&
       config["patch"]["fileRedirection"].count(mpkFilename) > 0) {
     std::string key = std::to_string(fileId);
+
     if (config["patch"]["fileRedirection"][mpkFilename].count(key) == 1) {
       auto red = config["patch"]["fileRedirection"][mpkFilename][key];
       if (red.type() == json::value_t::number_integer ||
@@ -825,6 +918,7 @@ int __fastcall cpkFopenByIdHook(void* pThis, CRIFileInfoData* mpk, int fileId) {
 #endif
         return gameExeCpkFopenByIdReal(pThis, &criFileInfo[archiveId],
                                        newFileId);
+      } else if (red.type() == json::value_t::object) {
       }
     }
   }
@@ -871,10 +965,7 @@ int __fastcall mpkFopenByIdHook(void* pThis, void* EDX, mpkObject* mpk,
   return gameExeMpkFopenByIdReal(pThis, mpk, fileId, unk3);
 }
 
-std::string mountArchiveHookPart(const char* mountPoint) {
-
-  return mountPoint;
-}
+std::string mountArchiveHookPart(const char* mountPoint) { return mountPoint; }
 
 int __cdecl mountArchiveHookRNE(int id, const char* mountPoint,
                                 const char* archiveName, int unk01) {
@@ -959,6 +1050,17 @@ int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
           pThis->qword140 = c0dataCpk;
           //        if (fileId == -1) pThis->loadMode = 2;
           return gameExeMgsFileOpenReal64(pThis, dummy, unused);
+        } else if (red.type() == json::value_t::object) {
+          int language = 2;
+          auto newFileId = red["id"].get<int>();
+          if (red["lang"].size() == 1) {
+            language = red["lang"].get<int>();
+          }
+          if (language > 2) language = 2;
+          if (language == 2 || language == *gameExeCurrentLanguage) {
+            pThis->unsigned_int10 = newFileId;
+            pThis->qword140 = c0dataCpk;
+          }
         }
       }
     }
