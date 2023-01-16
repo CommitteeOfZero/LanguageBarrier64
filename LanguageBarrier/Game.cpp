@@ -795,6 +795,7 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
 
     gameExeScrWork = *(int**)sigScan("game", "useOfScrWork");
     gameExeCurrentLanguage = (int*)sigScan("game", "currentLanguage");
+    CostumeEnabled = (int*)sigScan("game", "CostumeToggle");
 
     scanCreateEnableHook(
         "game", "exitApplication", (uintptr_t*)&gameExeCloseAllSystems,
@@ -1022,7 +1023,7 @@ int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
   if (stem == "mes01") {
   }
 
-  if (pThis->qword140 && (fileId > 0 || (fileName && fileName[0] != '\0'))) {
+  if (pThis->qword140 && (fileId >= 0 || (fileName && fileName[0] != '\0'))) {
     std::stringstream logstr;
     logstr << "mgsFileOpen(" << archiveName << ", 0x" << std::hex << fileId
            << ")" << std::dec;
@@ -1053,6 +1054,15 @@ int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
         } else if (red.type() == json::value_t::object) {
           int language = 2;
           auto newFileId = red["id"].get<int>();
+
+          int lcsid = -1;
+          if (red.count("lcsid") > 0)
+          lcsid=red["lcsid"].get<int>();
+
+          if (*CostumeEnabled && lcsid != -1) {
+            newFileId = lcsid;
+          }
+
           if (red["lang"].size() == 1) {
             language = red["lang"].get<int>();
           }

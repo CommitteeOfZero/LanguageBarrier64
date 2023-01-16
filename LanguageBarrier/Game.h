@@ -317,6 +317,7 @@ GAME_H_IMPORT ChkViewDicProc gameExeChkViewDic;
 
 GAME_H_IMPORT int* gameExeScrWork;
 GAME_H_IMPORT int* gameExeCurrentLanguage;
+GAME_H_IMPORT int* CostumeEnabled;
 
 
 

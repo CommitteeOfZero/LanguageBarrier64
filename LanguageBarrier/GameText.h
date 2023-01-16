@@ -108,7 +108,7 @@ int __cdecl drawSpriteCHNHook(int textureId, float spriteX, float spriteY,
                            float spriteWidth, float spriteHeight,
                            float displayX, float displayY, int color,
                            int opacity);
-__m128 __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
+void __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
                                 char* a5, unsigned int a6, unsigned int a7,
                                 float a8, float a9, unsigned int a11);
 
@@ -147,7 +147,9 @@ inline uintptr_t gameExeSetTipContentHeightReturn;
 inline uintptr_t gameExeSetTipContentHeight2Return;
 inline uintptr_t gameExeSkipCHN;
 inline uintptr_t gameExeSkipCHNOffset;
-
+inline uintptr_t gameExeSetTipCountReturn;
+inline uintptr_t gameExeSetTipCountReturn2;
+inline uintptr_t BlueSkyPromptFixReturn;
 inline uintptr_t gameExeRsi;
 }
 
