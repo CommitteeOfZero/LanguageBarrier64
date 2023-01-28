@@ -9,6 +9,9 @@ extern gameExeSetTipContentHeightReturn:ptr qword
 extern gameExeSetTipContentHeight2Return:ptr qword
 extern gameExeSetTipCountReturn:ptr qword
 extern gameExeSetTipCountReturn2:ptr qword
+extern gameExeSetTipCountReturn3:ptr qword
+extern gameExeCurrentLanguage:ptr dword
+
 extern BlueSkyPromptFixReturn:ptr qword
 
 extern gameExeSkipCHNOffset:ptr qword
@@ -124,6 +127,29 @@ $LN1@setTipCountHook2:
  jmp [gameExeSetTipCountReturn2]
   setTipCountHook2 endp
 
+
+
+
+   setTipCountHook3 proc
+	
+		cmp     rdi, 145   ; 00000091H
+		jle     SHORT $LN4@setTipCountHook3
+		push rax
+		push rbx
+		mov rax,[gameExeCurrentLanguage]
+		mov ebx, [rax]
+		cmp ebx,1
+		pop rbx
+		pop rax
+		jne $LN2@setTipCountHook3
+		$LN4@setTipCountHook3:
+		test    [rcx+rbp+1D8088h], al
+		jmp     SHORT $LN1@setTipCountHook3
+		$LN2@setTipCountHook3:
+		test rax,rax
+		$LN1@setTipCountHook3:
+		jmp [gameExeSetTipCountReturn3]
+		setTipCountHook3 endp
 
 
 

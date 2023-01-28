@@ -552,7 +552,7 @@ BINK* __stdcall BinkOpenHook(const char* name, uint32_t flags) {
       config["patch"]["fmv"]["subs"].count(tmp) == 1)
     subFileName = config["patch"]["fmv"]["subs"][tmp].get<std::string>();
 
-  if (!subFileName.empty()) {
+  if (!subFileName.empty() && *gameExeCurrentLanguage == 1) {
     std::stringstream ssSubPath;
     ssSubPath << "languagebarrier\\subs\\" << subFileName;
     std::string subPath = ssSubPath.str();

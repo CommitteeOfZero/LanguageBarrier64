@@ -270,6 +270,7 @@ struct DDSInfo {
   uint8_t byte1C;
 };
 __int64 __fastcall CreateDDSInfoCHN(DDSFile* a1, __int64 a2, DDSInfo* a3);
+typedef void(* TitleScreenProc)();
 
 typedef BOOL(__cdecl* GetFlagProc)(int flagId);
 typedef void(__cdecl* SetFlagProc)(int flagId, BOOL value);
@@ -288,6 +289,68 @@ struct CVector4 {
 };
 
 
+struct MouseInfo {
+  uint8_t enabled;
+  uint8_t gap_1[3];
+  uint32_t field_4;
+  uint64_t field_8;
+  uint8_t gap_10[8];
+  float position[4];
+  uint8_t gap_28[32];
+};
+
+
+
+struct __declspec(align(1)) MgsWindowInfo {
+  char gap0[12];
+  int intC;
+  int int10;
+  int qword14;
+  int qword18;
+  uint8_t gap1C[8];
+  uint8_t byte24;
+  uint8_t gap25[3];
+  unsigned int unsigned_int28;
+  unsigned int unsigned_int2C;
+  uint8_t gap30[8];
+  const void* pvoid38;
+  uint64_t qword40;
+  uint8_t* pbyte48;
+  const void* pvoid50;
+  uint64_t qword58;
+  uint8_t* pbyte60;
+  HINSTANCE phinstance__68;
+  uint8_t gap70[8];
+  HWND phwnd__78;
+  struct tagRECT tagrect80;
+  const WCHAR* pwchar90;
+  uint8_t gap98[16];
+  uint64_t qwordA8;
+  char charB0;
+  uint8_t gapB1[23];
+  uint64_t qwordC8;
+  uint8_t gapD0[68];
+  const char char114;
+  uint8_t gap115[47];
+  uint32_t dword144;
+  uint32_t dword148;
+  uint32_t dword14C;
+  uint32_t dword150;
+  uint8_t gap154[4];
+  uint32_t dword158;
+  uint8_t gap15C[40];
+  char char184;
+  char char185;
+  char char186;
+  char char187;
+  char char188;
+  char char189;
+  char char18A;
+  char char18B;
+  char char18C;
+  char char18D;
+  char char18E;
+};
 
 struct  CRIFileInfoData {
   uint8_t gap_0[8];
@@ -310,13 +373,15 @@ LB_GLOBAL uint8_t MPK_ID_SCRIPT_MPK;
 LB_GLOBAL uint8_t MPK_ID_BGM_MPK;
 LB_GLOBAL uint8_t AUDIO_PLAYER_ID_BGM1;
 LB_GLOBAL uint32_t C0DATA_MOUNT_ID;
-
 GAME_H_IMPORT GetFlagProc gameExeGetFlag;
 GAME_H_IMPORT SetFlagProc gameExeSetFlag;
 GAME_H_IMPORT ChkViewDicProc gameExeChkViewDic;
+GAME_H_IMPORT MgsWindowInfo* gameExeMgsWindowInfo;
 
 GAME_H_IMPORT int* gameExeScrWork;
-GAME_H_IMPORT int* gameExeCurrentLanguage;
+extern "C" {
+inline int* gameExeCurrentLanguage;
+}
 GAME_H_IMPORT int* CostumeEnabled;
 
 

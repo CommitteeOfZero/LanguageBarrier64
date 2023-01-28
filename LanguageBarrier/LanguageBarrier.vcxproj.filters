@@ -122,12 +122,6 @@
     <ClCompile Include="CriManaMod.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CustomInputRNE.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CustomInputRND.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="BinkMod.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

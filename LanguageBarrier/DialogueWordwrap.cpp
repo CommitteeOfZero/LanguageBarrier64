@@ -8,7 +8,7 @@
 #include <string>
 #include <locale>
 #include <codecvt>
-
+#include "Game.h"
 // Linebreaks are allowed *after* type1 punctuation
 // space (63) space (0) 、 。 ． ， ？ ！ 〜 ” ー ） 〕 ］ ｝ 〉 》 」 』 】 ☆ ★
 // ♪ 々 ぁ ぃ ぅ ぇ ぉ っ ゃ ゅ ょ ァ ィ ゥ ェ ォ ッ ャ ュ ョ –
@@ -56,7 +56,7 @@ bool is_type2_punct(uint16_t c);
 bool is_letter(uint16_t c);
 void dlgWordwrapGenerateMaskHook(int unk0);
 
-void dialogueWordwrapInit() {
+void  dialogueWordwrapInit() {
   uintptr_t baseAddress = (uintptr_t)GetModuleHandle(0);
   gameExeDlgWordwrapString =
       (uint16_t*)(sigScan("game", "useOfDlgWordwrapString") + baseAddress);
@@ -66,7 +66,7 @@ void dialogueWordwrapInit() {
   scanCreateEnableHook("game", "dlgWordwrapGenerateMask",
                        (uintptr_t*)&gameExeDlgWordwrapGenerateMask,
                        (LPVOID)dlgWordwrapGenerateMaskHook,
-                       (LPVOID*)gameExeDlgWordwrapGenerateMaskReal);
+                       (LPVOID*)&gameExeDlgWordwrapGenerateMaskReal);
 
   if (config["patch"].count("useNewTextSystem") == 1 &&
       config["patch"]["useNewTextSystem"].get<bool>() == true) {
@@ -98,6 +98,12 @@ void dialogueWordwrapInit() {
 void dlgWordwrapGenerateMaskHook(int unk0) {
   int pos = 0;
 
+  if (*gameExeCurrentLanguage == 0)
+
+  {
+    return gameExeDlgWordwrapGenerateMaskReal(unk0);
+  };
+
   bool insideRubyBase = false, insideRubyText = false;
 
   // If it's a piece of dialogue, we should deal with the name first.
@@ -116,7 +122,8 @@ void dlgWordwrapGenerateMaskHook(int unk0) {
     else
       gameExeDlgWordwrapMask[pos++] = mask_bytes::type1_punct;
   }
-
+  std::vector<TextRendering::charInfo> out;
+  out.clear();
   while (pos < *gameExeDlgWordwrapLength) {
     auto curr = gameExeDlgWordwrapString[pos];
 
@@ -175,10 +182,14 @@ void dlgWordwrapGenerateMaskHook(int unk0) {
 
   int lastletter = 0;
   ;
-
+  out.clear();
   for (int i = 0; i < *gameExeDlgWordwrapLength; i++) {
+
     if (gameExeDlgWordwrapMask[i] == mask_bytes::letter ||
         gameExeDlgWordwrapMask[i] == mask_bytes::word_last_char) {
+      auto character =
+          TextRendering::Get().characterInfo[gameExeDlgWordwrapMask[i]];
+      out.push_back(character);
       lastletter = i;
     }
   }

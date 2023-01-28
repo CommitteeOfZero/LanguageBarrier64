@@ -149,8 +149,10 @@ inline uintptr_t gameExeSkipCHN;
 inline uintptr_t gameExeSkipCHNOffset;
 inline uintptr_t gameExeSetTipCountReturn;
 inline uintptr_t gameExeSetTipCountReturn2;
+inline uintptr_t gameExeSetTipCountReturn3;
 inline uintptr_t BlueSkyPromptFixReturn;
 inline uintptr_t gameExeRsi;
+
 }
 
 #endif  // !__GAMETEXT_H__

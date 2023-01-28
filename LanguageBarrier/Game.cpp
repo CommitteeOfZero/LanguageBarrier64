@@ -50,6 +50,8 @@ typedef int(__fastcall* MountArchiveCHNProc)(int id, int unk01,
                                              void* dummy3, void* dummy4);
 static MountArchiveCHNProc gameExeMountArchiveCHN = NULL;
 static MountArchiveCHNProc gameExeMountArchiveCHNReal = NULL;
+static TitleScreenProc gameExeTitleScreeenRenderReal = NULL;
+static TitleScreenProc gameExeTitleScreeenRender = NULL;
 
 static MountArchiveRNDProc gameExeMountArchiveRND = NULL;
 static MountArchiveRNDProc gameExeMountArchiveRNDReal = NULL;
@@ -440,16 +442,12 @@ int Framelimiter(void* a1) {
 
   using fps_60 = std::chrono::duration<double, std::ratio<1, 60>>;
   double timeSpan = 1 - fps_60(now - old).count();
-  if (!GetAsyncKeyState('B')) {
-    if (timeSpan < 1 && timeSpan > 0) preciseSleep(timeSpan / 60.0f);
-  }
+  if (timeSpan < 1 && timeSpan > 0) preciseSleep(timeSpan / 60.0f);
   old = c.now();
   auto res = gameExeSystemFrameFlipReal(a1);
 
   return res;
 }
-
-int* gameExeScrWork = (int*)NULL;
 
 namespace lb {
 
@@ -486,9 +484,11 @@ int __cdecl mountArchiveHookRND(int id, const char* mountPoint, int unk01,
 
 unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
                                              unsigned __int8* a3);
+static int* gameExeEpList = NULL;  // = (int *)0x52E1E8;
 
 unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
                                              unsigned __int8* a3) {
+  memset(gameExeEpList, 0, 0xB0 * 28);
   auto val = gameExeTipsDataInitReal(a1, a2, a3);
   lb::write_perms(gameExeTipsCountOffset[0], (uint8_t)(*gameExeEPMax - 0x30),
                   true);
@@ -497,8 +497,39 @@ unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
   return val;
 }
 
+MouseInfo* gameExeMouseInfo = nullptr;
+uint8_t* FlagWork = nullptr;
+
+BOOL __cdecl GetFlag(unsigned int a1) {
+  if (!FlagWork) {
+    FlagWork = *(uint8_t**)sigScan("game", "FlagWork");
+  }
+
+  return ((unsigned __int8)(1 << (a1 - 8 * (a1 >> 3))) &
+          *((uint8_t*)FlagWork + (a1 >> 3))) != 0;
+}
+
+void TitleScreenRenderCHN() {
+  if (!gameExeMouseInfo) {
+    gameExeMouseInfo = *(MouseInfo**)sigScan("game", "MouseInfo");
+  }
+
+  gameExeTitleScreeenRenderReal();
+
+  BOOL flag1930 = GetFlag(1930);
+  BOOL flag1931 = GetFlag(1931);
+  if (flag1930 && flag1931 && *gameExeCurrentLanguage == 0) {
+    gameExeMouseInfo[0].enabled = 0;
+
+  }
+
+  else if (GetFlag(1930) && !GetFlag(1931))
+    gameExeMouseInfo[0].enabled = 1;
+}
+
 void gameInit() {
   SetProcessDPIAware();
+
   std::ifstream in("languagebarrier\\stringReplacementTable.bin",
                    std::ios::in | std::ios::binary);
   in.seekg(0, std::ios::end);
@@ -515,6 +546,7 @@ void gameInit() {
   gameExeTextureLoadInit1 = sigScan("game", "textureLoadInit1");
   gameExeTextureLoadInit2 = sigScan("game", "textureLoadInit2");
   gameExeGslPngload = sigScan("game", "gslPngload");
+  gameExeEpList = (int*)sigScan("game", "EPList");
 
   gameExeGslCreateTexture = sigScan("game", "createTexture");
   gameExeGslCreateTextureCLUT = sigScan("game", "createTextureCLUT");
@@ -584,6 +616,7 @@ void gameInit() {
     // Patch 0x74 (jz) to jmp (0xEB)
   }
   gameExeEPMax = (uint32_t*)sigScan("game", "EPMax");
+  gameExeEpList = (int*)sigScan("game", "EPList");
 
   if (config["gamedef"]["signatures"]["game"].count("useOfPCurrentBgm") == 1)
     gameExePCurrentBgm = sigScan("game", "useOfPCurrentBgm");
@@ -753,6 +786,10 @@ void gameInit() {
     binkModInit();
   }
 
+  scanCreateEnableHook(
+      "game", "TitleScreenRender", (uintptr_t*)&gameExeTitleScreeenRender,
+      (LPVOID)TitleScreenRenderCHN, (LPVOID*)&gameExeTitleScreeenRenderReal);
+
   if (config["patch"].count("overrideAreaParams")) {
     scanCreateEnableHook(
         "game", "setAreaParams", (uintptr_t*)&gameExeSetAreaParams,
@@ -764,6 +801,9 @@ void gameInit() {
 // the game 'starts' proper
 // so, probably a good place to do all of our initialisation that requires
 // interacting with them
+
+static bool maximizeOnInit = false;
+
 int __cdecl earlyInitHook(int unk0, int unk1) {
   int retval = gameExeEarlyInitReal(unk0, unk1);
 
@@ -828,16 +868,6 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
         dialogueWordwrapInit();
       }
 
-      if (config["patch"].count("RNEMouseInput") == 1 &&
-          config["patch"]["RNEMouseInput"].get<bool>() == true) {
-        rne::customInputInit();
-      }
-
-      if (config["patch"].count("RNDMouseInput") == 1 &&
-          config["patch"]["RNDMouseInput"].get<bool>() == true) {
-        rnd::customInputInit();
-      }
-
       if (config["patch"].count("RNENameTagFix") == 1 &&
           config["patch"]["RNENameTagFix"].get<bool>() == true) {
         float* dotX = (float*)sigScan("game", "useOfRNENameTagDotX");
@@ -880,6 +910,23 @@ int __cdecl earlyInitHook(int unk0, int unk1) {
         ids[2] = 22;
       }
     }
+
+    gameExeMgsWindowInfo = *(MgsWindowInfo**)sigScan("game", "MgsWindowInfo");
+
+    HWND hCurWnd = ::GetForegroundWindow();
+    DWORD dwMyID = ::GetCurrentThreadId();
+    DWORD dwCurID = ::GetWindowThreadProcessId(hCurWnd, NULL);
+    ::AttachThreadInput(dwCurID, dwMyID, TRUE);
+    ::SetWindowPos(gameExeMgsWindowInfo->phwnd__78, HWND_TOPMOST, 0, 0, 0, 0,
+                   SWP_NOSIZE | SWP_NOMOVE);
+    ::SetWindowPos(gameExeMgsWindowInfo->phwnd__78, HWND_NOTOPMOST, 0, 0, 0, 0,
+                   SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE);
+    ::SetForegroundWindow(gameExeMgsWindowInfo->phwnd__78);
+    ::SetFocus(gameExeMgsWindowInfo->phwnd__78);
+    ::SetActiveWindow(gameExeMgsWindowInfo->phwnd__78);
+    ::AttachThreadInput(dwCurID, dwMyID, FALSE);
+    ::ShowWindow(gameExeMgsWindowInfo->phwnd__78, SW_RESTORE);
+
   } catch (std::exception& e) {
     MessageBoxA(NULL, e.what(), "LanguageBarrier exception", MB_ICONSTOP);
   }
@@ -1056,8 +1103,7 @@ int __fastcall mgsFileOpenHook64(MgsFileLoader64* pThis, void* dummy,
           auto newFileId = red["id"].get<int>();
 
           int lcsid = -1;
-          if (red.count("lcsid") > 0)
-          lcsid=red["lcsid"].get<int>();
+          if (red.count("lcsid") > 0) lcsid = red["lcsid"].get<int>();
 
           if (*CostumeEnabled && lcsid != -1) {
             newFileId = lcsid;

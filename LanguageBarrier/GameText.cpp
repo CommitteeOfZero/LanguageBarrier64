@@ -132,7 +132,6 @@ int __cdecl gslFillHook(int id, int a1, int a2, int a3, int a4, int r, int g,
 static uintptr_t gameExeRenderMode = NULL;
 static uintptr_t gameExeShaderPtr = NULL;
 static uintptr_t gameExeBlendMode = NULL;
-static int* gameExeLanguage = NULL;
 
 std::string gameId;
 
@@ -382,6 +381,7 @@ static uintptr_t gameExeSetTipContentHeight = NULL;
 static uintptr_t gameExeSetTipContentHeight2 = NULL;
 static uintptr_t gameExeSetTipCountOffset = NULL;
 static uintptr_t gameExeSetTipCountOffset2 = NULL;
+static uintptr_t gameExeSetTipCountOffset3 = NULL;
 
 static uintptr_t gameExeTipsListWidthLookup = NULL;
 static uintptr_t gameExeTipsListWidthLookupReturn = NULL;
@@ -402,9 +402,10 @@ static std::map<uintptr_t, SpriteFix_t> retAddrToSpriteFixes;
 static uintptr_t gameExeCcBacklogNamePosCode = NULL;       // = 0x00454FE9
 static uintptr_t gameExeCcBacklogNamePosAdjustRet = NULL;  // = 0x00454FEF
 
-static uint8_t* gameExeGlyphWidthsFont1 = NULL;       // = (uint8_t *)0x52C7F0;
-static uint8_t* gameExeGlyphWidthsFont2 = NULL;       // = (uint8_t *)0x52E058;
-static int* gameExeColors = NULL;                     // = (int *)0x52E1E8;
+static uint8_t* gameExeGlyphWidthsFont1 = NULL;  // = (uint8_t *)0x52C7F0;
+static uint8_t* gameExeGlyphWidthsFont2 = NULL;  // = (uint8_t *)0x52E058;
+static int* gameExeColors = NULL;                // = (int *)0x52E1E8;
+
 static int8_t* gameExeBacklogHighlightHeight = NULL;  // = (int8_t *)0x435DD4;
 
 static int* gameExeCcBacklogCurLine =
@@ -425,6 +426,7 @@ void dialogueLayoutWidthLookup2Hook();
 void dialogueLayoutWidthLookup4Hook();
 void setTipCountHook();
 void setTipCountHook2();
+void setTipCountHook3();
 
 void setTipContentHeightHook();
 void setTipContentHeightHook2();
@@ -589,8 +591,8 @@ void drawReportContentHook(int textureId, int maskId, int a3, int a4,
                            unsigned int a11, unsigned int a12, int opacity,
                            int a14, int a15, float a16);
 int __cdecl drawTextHook(signed int textureId, int a2, signed int startY,
-                           unsigned int a4, uint8_t* a5, signed int startX,
-                           int color, int height, int opacity);
+                         unsigned int a4, uint8_t* a5, signed int startX,
+                         int color, int height, int opacity);
 void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
                                        int startX, int startY,
                                        unsigned int maskY, int maskHeight,
@@ -713,12 +715,12 @@ void HookBacklog() {
   dword_1417ADF98 =
       (uint32_t*)(sigScan("game", "BacklogUnknownPtr8") + baseAddress);
 
-
   BacklogDispCurPosSY =
       (int*)(sigScan("game", "BacklogDispCurPosSY") + baseAddress);
 }
 
 void gameTextInit() {
+
   if (config["gamedef"].count("dialoguePageVersion") == 1) {
     if (config["gamedef"]["dialoguePageVersion"].get<std::string>() == "rn") {
       currentGame = RNE;
@@ -740,8 +742,6 @@ void gameTextInit() {
     gameExeRenderMode = *(uintptr_t*)sigScan("game", "renderMode");
     gameExeBlendMode = *(uintptr_t*)sigScan("game", "blendMode");
     gameExeShaderPtr = *(uintptr_t*)sigScan("game", "shaderPtr");
-
-    gameExeLanguage = *(int**)sigScan("game", "CurrentLanguage");
   }
 
   if (currentGame == RNE) {
@@ -886,8 +886,8 @@ void gameTextInit() {
         "game", "drawSprite", (uintptr_t*)&gameExeDrawCHNSprite,
         (LPVOID)drawSpriteCHNHook, (LPVOID*)&gameExeDrawCHNSpriteReal);
 
-     scanCreateEnableHook("game", "chnDrawText4", (uintptr_t*)&rnDrawText,
-                          (LPVOID)sub_140045C30, nullptr);
+    scanCreateEnableHook("game", "chnDrawText4", (uintptr_t*)&rnDrawText,
+                         (LPVOID)sub_140045C30, nullptr);
 
     scanCreateEnableHook(
         "game", "chnDrawText5", (uintptr_t*)&gameExeDrawMaskCHNSprite,
@@ -1227,18 +1227,21 @@ void gameTextInit() {
     scanCreateEnableHook("game", "dialogueLayoutWidthLookup3",
                          &gameExeDialogueLayoutWidthLookup3,
                          dialogueLayoutWidthLookup3Hook, NULL);
-    
-        scanCreateEnableHook("game", "TipsCountOffset3",
-                         &gameExeSetTipCountOffset,
+
+    scanCreateEnableHook("game", "TipsCountOffset3", &gameExeSetTipCountOffset,
                          &setTipCountHook, (LPVOID*)&gameExeSetTipCountReturn);
 
-        scanCreateEnableHook("game", "TipsCountOffset4",
-                             &gameExeSetTipCountOffset2, &setTipCountHook2,
-                             (LPVOID*)&gameExeSetTipCountReturn2);
-        scanCreateEnableHook("game", "BlueSkyPromptFix",
-                             &gameExeBlueSkyPromptFix, &BlueSkyPromptFixHook,
-                             (LPVOID*)&BlueSkyPromptFixReturn);
+    scanCreateEnableHook("game", "TipsCountOffset4", &gameExeSetTipCountOffset2,
+                         &setTipCountHook2,
+                         (LPVOID*)&gameExeSetTipCountReturn2);
 
+    scanCreateEnableHook("game", "TipsCountOffset5", &gameExeSetTipCountOffset3,
+                         &setTipCountHook3,
+                         (LPVOID*)&gameExeSetTipCountReturn3);
+
+    scanCreateEnableHook("game", "BlueSkyPromptFix", &gameExeBlueSkyPromptFix,
+                         &BlueSkyPromptFixHook,
+                         (LPVOID*)&BlueSkyPromptFixReturn);
 
     gameExeDialogueLayoutWidthLookup3Return =
         (uintptr_t)((uint8_t*)gameExeDialogueLayoutWidthLookup3 +
@@ -2183,7 +2186,7 @@ int __cdecl drawTipMessageHook(int textureId, int a2, int a3, char* sc3String,
     ;
   } else {
     drawTextHook(TextRendering::Get().FONT_TEXTURE_ID, a2, a3, 0,
-                   (uint8_t*)sc3String, a2, color, 18, opacity);
+                 (uint8_t*)sc3String, a2, color, 21, opacity);
   }
 }
 
@@ -2980,8 +2983,8 @@ int rnDrawGlyphHook(int textureId, float glyphInTextureStartX,
 }
 
 int __cdecl drawTextHook(signed int textureId, int a2, signed int startY,
-                           unsigned int a4, uint8_t* sc3, signed int startX,
-                           int color, int height, int opacity) {
+                         unsigned int a4, uint8_t* sc3, signed int startX,
+                         int color, int height, int opacity) {
   chatSIMDMove();
 
   int length = 0;
@@ -3000,7 +3003,6 @@ int __cdecl drawTextHook(signed int textureId, int a2, signed int startY,
     a2 += 17;
   }
 
-
   if (a4 == 0x500 && color == 0x5C3AB4 && height == 0x14) {
     a2 += 8;
   }
@@ -3008,6 +3010,33 @@ int __cdecl drawTextHook(signed int textureId, int a2, signed int startY,
   if (a4 == 0x164 && color == 0x808080) {
     return 1;
   }
+
+  if (a4 == 0x164) {
+
+if (startY == 0x96 || startY == 0x117 || startY == 0x198 || startY == 0x21A) {
+    char year[8];
+    char month[4];
+    char day[4];
+    char date[20];
+    auto sc31 = (char*)sc3;
+    memcpy(year, sc31, 8);
+    sc31 += 10;
+    if (*(sc31 + 1) == 0x3F) *(sc31 + 1) = 0x01;
+    memcpy(month, sc31, 4);
+    sc31 += 6;
+    if (*(sc31 + 1) == 0x3F) *(sc31 + 1) = 0x01;
+    memcpy(day, sc31, 4);
+    memcpy(date, month, 4);
+    date[4] = 0x80;
+    date[5] = 0x40;
+    memcpy(date + 6, day, 4);
+    date[10] = 0x80;
+    date[11] = 0x40;
+    memcpy(date + 12, year, 8);
+    memcpy(sc3, date, 20);
+  }
+  }
+
 
   bool finish = false;
   int sc3Index = 0;
@@ -3020,7 +3049,7 @@ int __cdecl drawTextHook(signed int textureId, int a2, signed int startY,
     }
     int width = a4 * 1.5 + 1;
     while (a4 != 0 && width > a4 * 1.5 && height > 0) {
-      width = getSc3StringDisplayWidthHook((char*)sc3, 0, height * 1.5);
+      width = ChatLayout2((char*)sc3, 0, height * 1.5);
       if (width > a4 * 1.5) height--;
     }
     std::list<StringWord_t> words;
@@ -3295,8 +3324,8 @@ struct CHNChatInfo {
 };
 
 void __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
-                                char* a5, unsigned int a6, unsigned int a7,
-                                float a8, float a9, unsigned int a11) {
+                              char* a5, unsigned int a6, unsigned int a7,
+                              float a8, float a9, unsigned int a11) {
   chatSIMDMove();
   ProcessedSc3String_t str;
   __m128 lineHeight = {};
@@ -3350,7 +3379,6 @@ void __fastcall sub_140045C30(__int64 a1, float a2, float a3, float a4,
           str.displayStartY[i] + glyphSize - glyphInfo->top, curColor, a11 / 2);
   }
   chatSIMDMoveRestore();
-
 }
 
 void drawPhoneCallNameHook(int textureId, int maskId, int a3, int a4, int a5,
@@ -3618,7 +3646,6 @@ __int64 __fastcall ChatLayout2(char* a1, unsigned int a2, unsigned int a3) {
       TextRendering::Get().fontData.end())
     TextRendering::Get().buildFont(a3, true);
 
-  a3 = 32 * 0.85;
 
   v3 = 0xFF;
   v5 = a1;
@@ -3637,17 +3664,11 @@ __int64 __fastcall ChatLayout2(char* a1, unsigned int a2, unsigned int a3) {
       v10 = (unsigned __int8)v5[1];
       v5 += 2;
       v11 = v10 + ((unsigned __int8)(v9 & 0x7F) << 8);
-      if ((unsigned int)v11 >= 0x15F) {
-        if ((unsigned int)v11 < 0x2800)
-          v6 += a3;
-        else
-          v6 += (unsigned int)(17 * a3) >> 5;
-        ++v7;
-      } else {
+     
         v6 += TextRendering::Get().fontData[a3].glyphData.glyphMap[v11].advance;
         ;
         ++v7;
-      }
+     
       goto LABEL_14;
     }
     if (v8 == 4) {
@@ -3753,16 +3774,16 @@ int drawSpriteCHNHook(int textureId, float spriteX, float spriteY,
   if (textureId == 80 && displayX == 1651 && displayY == 988 &&
       spriteHeight == 42 && spriteWidth == 42) {
     displayX += promptOffset;
-  } 
-  
+  }
+
   else if (textureId == 80 && displayX == 1703 && displayY == 988 &&
-      spriteHeight == 42 && spriteWidth == 42) {
-     displayX += promptOffset;
-  } 
-  
+           spriteHeight == 42 && spriteWidth == 42) {
+    displayX += promptOffset;
+  }
+
   else if (textureId == 80 && displayX == 1755 && displayY == 988 &&
-             spriteHeight == 42 && spriteWidth == 42) {
-     displayX += promptOffset;
+           spriteHeight == 42 && spriteWidth == 42) {
+    displayX += promptOffset;
   }
   auto it = retAddrToSpriteFixes.find((uintptr_t)_ReturnAddress());
   if (it != retAddrToSpriteFixes.end()) {
@@ -4039,127 +4060,133 @@ void __fastcall sub_1400443B0(__int64 a1, __int64 a2, __int64 a3, int a4,
     if (v7) {
       v31 = *dword_141BADF6C;
       v32 = *qword_141BADF88;
-         do {
-           v33 = BacklogDispLinePosY[v30] - *BacklogDispPos + 94;
-           if (v33 + BacklogDispLineSize[v30] > 46 && v33 < 646) {
-             v34 = (unsigned int)BacklogDispLinePos[v30];
-             v35 = 0;
-             v36 = 0;
-             v37 = BacklogLineBufEndp[v34];
-             strIndex = BacklogLineBufSize[v34];
-             bool newline = true;
-             xPos = BacklogTextPos[0] + 100;
-             int firstCharacter = strIndex;
+      do {
+        v33 = BacklogDispLinePosY[v30] - *BacklogDispPos + 94;
+        if (v33 + BacklogDispLineSize[v30] > 46 && v33 < 646) {
+          v34 = (unsigned int)BacklogDispLinePos[v30];
+          v35 = 0;
+          v36 = 0;
+          v37 = BacklogLineBufEndp[v34];
+          strIndex = BacklogLineBufSize[v34];
+          bool newline = true;
+          xPos = BacklogTextPos[0] + 100;
+          int firstCharacter = strIndex;
 
-             if (v37) {
-               do {
-                 v39 = (unsigned __int16)BacklogText[strIndex];
+          if (v37) {
+            do {
+              v39 = (unsigned __int16)BacklogText[strIndex];
 
-                 auto glyphSize = BacklogTextSize[4 * strIndex + 3];
-                 if (strIndex == 0 ||
-                     strIndex > 0 &&
-                         abs(BacklogTextPos[2 * (strIndex) + 1] -
-                             BacklogTextPos[2 * (strIndex - 1) + 1]) >
-         glyphSize) { newline = true; firstCharacter = strIndex; } else newline
-         = false; currentChar = (unsigned __int16)BacklogText[strIndex];
-                 posIndex = (unsigned int)(2 * strIndex);
-                 yPos = v12 + BacklogTextPos[firstCharacter * 2 + 1];
-                 sizeIndex = (unsigned int)(4 * strIndex);
+              auto glyphSize = BacklogTextSize[4 * strIndex + 3];
+              if (strIndex == 0 ||
+                  strIndex > 0 &&
+                      abs(BacklogTextPos[2 * (strIndex) + 1] -
+                          BacklogTextPos[2 * (strIndex - 1) + 1]) > glyphSize) {
+                newline = true;
+                firstCharacter = strIndex;
+              } else
+                newline = false;
+              currentChar = (unsigned __int16)BacklogText[strIndex];
+              posIndex = (unsigned int)(2 * strIndex);
+              yPos = v12 + BacklogTextPos[firstCharacter * 2 + 1];
+              sizeIndex = (unsigned int)(4 * strIndex);
 
-                 if ((v39 & 0x8000u) == 0) {
-                   if (v36) {
-                     v40 = BacklogTextPos[2 * strIndex + 1];
-                     if (v40 + v33 != yPos)
-                       v35 = v40 +
-                             (unsigned __int8)BacklogTextSize[4 * strIndex + 3]
-         - BacklogTextPos[2 * BacklogLineBufSize[v34] + 1];
-                   }
-                   posIndex = (unsigned int)(2 * strIndex);
-                   v42 = v39 >> 6;
-                   sizeIndex = (unsigned int)(4 * strIndex);
-                   yPos = v33 + BacklogTextPos[(unsigned int)(firstCharacter*2 +
-         1)]; auto glyphSize = BacklogTextSize[4 * strIndex + 3];
+              if ((v39 & 0x8000u) == 0) {
+                if (v36) {
+                  v40 = BacklogTextPos[2 * strIndex + 1];
+                  if (v40 + v33 != yPos)
+                    v35 = v40 +
+                          (unsigned __int8)BacklogTextSize[4 * strIndex + 3] -
+                          BacklogTextPos[2 * BacklogLineBufSize[v34] + 1];
+                }
+                posIndex = (unsigned int)(2 * strIndex);
+                v42 = v39 >> 6;
+                sizeIndex = (unsigned int)(4 * strIndex);
+                yPos = v33 +
+                       BacklogTextPos[(unsigned int)(firstCharacter * 2 + 1)];
+                auto glyphSize = BacklogTextSize[4 * strIndex + 3];
 
-                   if (newline == false &&
-                       (BacklogText[strIndex - 1] & 0x8000) == 0) {
-                     auto glyphInfo =
-                         TextRendering::Get()
-                             .getFont(glyphSize, true)
-                             ->getGlyphInfo(BacklogText[strIndex - 1], Regular);
-                     xPos += glyphInfo->advance;
-                   } else {
-                     xPos = BacklogTextPos[posIndex] + 100;
-                   }
-                   glyphSize = BacklogTextSize[4 * strIndex + 3];
+                if (newline == false &&
+                    (BacklogText[strIndex - 1] & 0x8000) == 0) {
+                  auto glyphInfo =
+                      TextRendering::Get()
+                          .getFont(glyphSize, true)
+                          ->getGlyphInfo(BacklogText[strIndex - 1], Regular);
+                  xPos += glyphInfo->advance;
+                } else {
+                  xPos = BacklogTextPos[posIndex] + 100;
+                }
+                glyphSize = BacklogTextSize[4 * strIndex + 3];
 
-                   TextRendering::Get().replaceFontSurface(glyphSize);
-                   auto glyphInfo =
-                       TextRendering::Get()
-                           .getFont(glyphSize, true)
-                           ->getGlyphInfo(BacklogText[strIndex], Regular);
+                TextRendering::Get().replaceFontSurface(glyphSize);
+                auto glyphInfo =
+                    TextRendering::Get()
+                        .getFont(glyphSize, true)
+                        ->getGlyphInfo(BacklogText[strIndex], Regular);
 
-         //          drawSpriteMask2CHNHook(
-         //              glyphInfo->x, sizeIndex, glyphInfo->x, glyphInfo->y,
-         //              (float)(unsigned __int8)glyphInfo->width,
+                //          drawSpriteMask2CHNHook(
+                //              glyphInfo->x, sizeIndex, glyphInfo->x,
+                //              glyphInfo->y, (float)(unsigned
+                //              __int8)glyphInfo->width,
 
-         //              (float)(unsigned __int8)glyphInfo->rows,
-         //              (float)(xPos + glyphInfo->left) * 1.5,
-         //              (float)(yPos - glyphInfo->top + glyphSize) * 1.5,
-         //              (float)(xPos + glyphInfo->left + glyphInfo->width) * 1.5,
-         //              (float)(yPos - glyphInfo->top + glyphInfo->rows +
-         //                      +glyphSize) *
-         //                  1.5,
-         //              ((float)1947), (float)0, ((float)6), v53,
-         //              dword_14020DB90[2 * (unsigned __int8)
-         //                                      byte_140719A10[strIndex +
-         //52400]], a7);
-               }
-                 v44 = strIndex;
-                 v45 = strIndex + 1;
-                 strIndex = 0;
-                 ++v36;
-                 if (v44 != 49999) strIndex = v45;
-               } while (v36 < v37);
-               v7 = *BacklogLineBufUse;
-               v31 = *dword_141BADF6C;
-               v32 = *qword_141BADF88;
-               v30 = v60;
-             }
-             v46 = BacklogLineBufSize[v34];
-             v47 = (unsigned int)(2 * v46);
-             v48 = v33 + BacklogTextPos[(unsigned int)(v47 + 1)];
-             if (v48 > 78) {
-               if (v35) {
-                 v50 = (float)v35;
-                 v49 = (float)v35;
-               } else {
-                 v49 = 0.0;
-                 v50 = (float)(unsigned __int8)BacklogTextSize[4 * v46 + 3]
-         * 1.5;
-               }
-               if ((float)((float)v48 + v50) < 646.0) {
-                 if (!v35)
-                   v49 = (float)(unsigned __int8)BacklogTextSize[4 * v46 + 3];
-                 v55.z = 1500.0;
-                 v55.w = v49 * 1.5;
-                 v55.y = (float)v48 * 1.5;
-                 v55.x = (float)(BacklogTextPos[v47] + 100) * 1.5;
-                 if ((int)v30 < 0xFFFF && v31 < *dword_1417ADF98) {
-                   v51 = v31++;
-                   *dword_141BADF6C = v31;
-                   v52 = 9 * v51;
-                   *(uint32_t*)(v32 + 8 * v52 + 12) = 0;
-                   *(uint32_t*)(v32 + 8 * v52 + 8) = v30;
-                   *(uint32_t*)(v32 + 8 * v52 + 4) = 20;
-                   *(uint8_t*)(v32 + 8 * v52) = 1;
-                   *(CVector4*)(v32 + 72 * v51 + 24) = v55;
-                 }
-               }
-             }
-           }
-           v30 = (unsigned int)(v30 + 1);
-           v60 = v30;
-         } while ((unsigned int)v30 < v7);
+                //              (float)(unsigned __int8)glyphInfo->rows,
+                //              (float)(xPos + glyphInfo->left) * 1.5,
+                //              (float)(yPos - glyphInfo->top + glyphSize)
+                //              * 1.5, (float)(xPos + glyphInfo->left +
+                //              glyphInfo->width) * 1.5, (float)(yPos -
+                //              glyphInfo->top + glyphInfo->rows +
+                //                      +glyphSize) *
+                //                  1.5,
+                //              ((float)1947), (float)0, ((float)6), v53,
+                //              dword_14020DB90[2 * (unsigned __int8)
+                //                                      byte_140719A10[strIndex
+                //                                      +
+                // 52400]], a7);
+              }
+              v44 = strIndex;
+              v45 = strIndex + 1;
+              strIndex = 0;
+              ++v36;
+              if (v44 != 49999) strIndex = v45;
+            } while (v36 < v37);
+            v7 = *BacklogLineBufUse;
+            v31 = *dword_141BADF6C;
+            v32 = *qword_141BADF88;
+            v30 = v60;
+          }
+          v46 = BacklogLineBufSize[v34];
+          v47 = (unsigned int)(2 * v46);
+          v48 = v33 + BacklogTextPos[(unsigned int)(v47 + 1)];
+          if (v48 > 78) {
+            if (v35) {
+              v50 = (float)v35;
+              v49 = (float)v35;
+            } else {
+              v49 = 0.0;
+              v50 = (float)(unsigned __int8)BacklogTextSize[4 * v46 + 3] * 1.5;
+            }
+            if ((float)((float)v48 + v50) < 646.0) {
+              if (!v35)
+                v49 = (float)(unsigned __int8)BacklogTextSize[4 * v46 + 3];
+              v55.z = 1500.0;
+              v55.w = v49 * 1.5;
+              v55.y = (float)v48 * 1.5;
+              v55.x = (float)(BacklogTextPos[v47] + 100) * 1.5;
+              if ((int)v30 < 0xFFFF && v31 < *dword_1417ADF98) {
+                v51 = v31++;
+                *dword_141BADF6C = v31;
+                v52 = 9 * v51;
+                *(uint32_t*)(v32 + 8 * v52 + 12) = 0;
+                *(uint32_t*)(v32 + 8 * v52 + 8) = v30;
+                *(uint32_t*)(v32 + 8 * v52 + 4) = 20;
+                *(uint8_t*)(v32 + 8 * v52) = 1;
+                *(CVector4*)(v32 + 72 * v51 + 24) = v55;
+              }
+            }
+          }
+        }
+        v30 = (unsigned int)(v30 + 1);
+        v60 = v30;
+      } while ((unsigned int)v30 < v7);
     }
   }
 }

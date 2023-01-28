@@ -346,7 +346,7 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* a1, int id,
     subFileName =
         config["patch"]["fmv"]["subs"][movieFileName].get<std::string>();
 
-  if (!subFileName.empty()) {
+  if (!subFileName.empty() && *gameExeCurrentLanguage == 1) {
     std::stringstream ssSubPath;
     ssSubPath << "languagebarrier\\subs\\" << subFileName;
     std::string subPath = ssSubPath.str();
@@ -418,7 +418,7 @@ int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
     subFileName =
         config["patch"]["fmv"]["subs"][movieFileName].get<std::string>();
 
-  if (!subFileName.empty()) {
+  if (!subFileName.empty() && *gameExeCurrentLanguage == 1) {
     std::stringstream ssSubPath;
     ssSubPath << "languagebarrier\\subs\\" << subFileName;
     std::string subPath = ssSubPath.str();
