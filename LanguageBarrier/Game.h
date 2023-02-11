@@ -403,6 +403,23 @@ bool gameGetBgmIsPlaying();
 struct SurfaceWrapper {
   static int game;
 
+
+    static void setEnabled(void* surfaceArray, int id, uint8_t value) {
+    switch (game) {
+      case 0: {
+        SurfaceStructRN* surfaceArrayRN = (SurfaceStructRN*)surfaceArray;
+      } break;
+      case 1: {
+      } break;
+      case 2: {
+        CHNSurface* surfaceArrayRND = (CHNSurface*)surfaceArray;
+        surfaceArrayRND[id].field_32 = 1;
+        surfaceArrayRND[id].field_41 = 1;
+
+      } break;
+    }
+  };
+
   static void* ptr(void* surfaceArray, int id) {
     switch (game) {
       case 0: {

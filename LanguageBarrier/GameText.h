@@ -152,7 +152,7 @@ inline uintptr_t gameExeSetTipCountReturn2;
 inline uintptr_t gameExeSetTipCountReturn3;
 inline uintptr_t BlueSkyPromptFixReturn;
 inline uintptr_t gameExeRsi;
-
+inline uintptr_t gameExeFixAchievementsReturn;
 }
 
 #endif  // !__GAMETEXT_H__

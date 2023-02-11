@@ -358,6 +358,15 @@ typedef int(__thiscall* ReadOggMetadataProc)(CPlayer* pThis);
 typedef int(__thiscall* TipsDataInitProc)(int a1, unsigned __int8* a2,
                                           unsigned __int8* a3);
 
+
+typedef int(__thiscall* MainMenuInputProc)();
+
+static MainMenuInputProc gameExeMainMenuInputInit;
+static MainMenuInputProc gameExeMainMenuInputReal;
+
+static int* gameExeMainMenuSelectedOption;
+
+
 static TipsDataInitProc gameExeTipsDataInit;
 static TipsDataInitProc gameExeTipsDataInitReal;
 
@@ -437,6 +446,7 @@ void preciseSleep(double seconds) {
     ;
 }
 
+
 int Framelimiter(void* a1) {
   auto now = c.now();
 
@@ -490,10 +500,20 @@ unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
                                              unsigned __int8* a3) {
   memset(gameExeEpList, 0, 0xB0 * 28);
   auto val = gameExeTipsDataInitReal(a1, a2, a3);
-  lb::write_perms(gameExeTipsCountOffset[0], (uint8_t)(*gameExeEPMax - 0x30),
+  lb::write_perms(gameExeTipsCountOffset[0], (uint8_t)(*gameExeEPMax - 0x30 - 0x5),
                   true);
-  lb::write_perms(gameExeTipsCountOffset[1], (uint8_t)(*gameExeEPMax - 0x30),
+  lb::write_perms(gameExeTipsCountOffset[1], (uint8_t)(*gameExeEPMax - 0x30 -0x5),
                   true);
+
+  uint8_t* fix1 = (uint8_t*)sigScan("game", "FixAchievements");
+  uint8_t* fix2 = (uint8_t*)sigScan("game", "FixAchievements2");
+
+  lb::write_perms(fix1, (uint8_t)(*gameExeEPMax - 5),
+                  true);
+  lb::write_perms(fix2, (uint8_t)(*gameExeEPMax - 5),
+                  true);
+
+
   return val;
 }
 
@@ -526,6 +546,27 @@ void TitleScreenRenderCHN() {
   else if (GetFlag(1930) && !GetFlag(1931))
     gameExeMouseInfo[0].enabled = 1;
 }
+
+int MainMenuInputHook() {
+  auto oldInput = *gameExeMainMenuSelectedOption;
+  auto res = gameExeMainMenuInputReal();
+  auto newInput = *gameExeMainMenuSelectedOption;
+  if ((oldInput == 1 && newInput == 4) || (oldInput == 4 && newInput == 1)) {
+    BOOL flag1930 = GetFlag(1930);
+    BOOL flag1931 = GetFlag(1931);
+    if (flag1930 && flag1931 && *gameExeCurrentLanguage == 0) {
+      return res;
+    }
+    *gameExeMainMenuSelectedOption = 0;
+
+  }
+
+  return res;
+}
+
+
+
+
 
 void gameInit() {
   SetProcessDPIAware();
@@ -640,6 +681,18 @@ void gameInit() {
             (LPVOID)Framelimiter, (LPVOID*)&gameExeSystemFrameFlipReal))
       return;
   }
+
+    gameExeMainMenuSelectedOption = (int*)sigScan("game", "FixBlueSkyKeyboard");
+
+
+    if (config["gamedef"]["signatures"]["game"].count("FixBlueSkyKeyboard2") == 1) {
+    if (!scanCreateEnableHook(
+            "game", "FixBlueSkyKeyboard2", (uintptr_t*)&gameExeMainMenuInputInit,
+            (LPVOID)MainMenuInputHook, (LPVOID*)&gameExeMainMenuInputReal))
+      return;
+  }
+
+
 
   if (config["gamedef"].count("gameArchiveMiddleware") == 1 &&
       config["gamedef"]["gameArchiveMiddleware"].get<std::string>() == "cri") {

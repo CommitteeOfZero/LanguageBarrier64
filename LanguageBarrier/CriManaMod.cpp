@@ -18,6 +18,7 @@
 #include <d3d11_1.h>
 
 #include "contrib/speexdsp/speex_resampler.h"
+#include "GameText.h"
 
 typedef struct {
   uint8_t* imageptr;
@@ -299,23 +300,27 @@ void drawSubs(bool deferred) {
       }
 
       auto m_spriteBatch = std::make_unique<DirectX::SpriteBatch>(test);
-
+      
       gameExePChnD3D11State->pid3d11devicecontext18->Unmap(
           state->stagingTexture, 0);
       gameExePChnD3D11State->pid3d11devicecontext18->CopyResource(
           state->subsTexture, state->stagingTexture);
 
       ID3D11RasterizerState* rsState;
-      test->RSGetState(&rsState);
-      m_spriteBatch->Begin();
-      RECT r;
-      r.left = 0;
-      r.right = format.width;
-      r.top = 0;
-      r.bottom = format.height;
-      m_spriteBatch->Draw(state->subRscView, r);
-      m_spriteBatch->End();
-      test->RSSetState(rsState);
+
+      SurfaceWrapper::setTexPtr(surfaceArray, 401, 0, state->subsTexture);
+      SurfaceWrapper::setShaderRscView(surfaceArray, 401,state->subRscView);
+      SurfaceWrapper::setField_40(surfaceArray, 401, format.width);
+      SurfaceWrapper::setField_44(surfaceArray, 401, format.height);
+      SurfaceWrapper::setWidth(surfaceArray, 401, format.width);
+      SurfaceWrapper::setHeight(surfaceArray, 401, format.height);
+      SurfaceWrapper::setEnabled(surfaceArray, 401, 1);
+
+
+      lb::drawSpriteCHNHook(401, 0, 0, format.width, format.height, 0, 0,
+                            16777215, 256);
+
+
     }
   }
 }

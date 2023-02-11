@@ -382,6 +382,7 @@ static uintptr_t gameExeSetTipContentHeight2 = NULL;
 static uintptr_t gameExeSetTipCountOffset = NULL;
 static uintptr_t gameExeSetTipCountOffset2 = NULL;
 static uintptr_t gameExeSetTipCountOffset3 = NULL;
+static uintptr_t game = NULL;
 
 static uintptr_t gameExeTipsListWidthLookup = NULL;
 static uintptr_t gameExeTipsListWidthLookupReturn = NULL;
@@ -427,6 +428,7 @@ void dialogueLayoutWidthLookup4Hook();
 void setTipCountHook();
 void setTipCountHook2();
 void setTipCountHook3();
+void FixAchievements();
 
 void setTipContentHeightHook();
 void setTipContentHeightHook2();
@@ -715,8 +717,22 @@ void HookBacklog() {
   dword_1417ADF98 =
       (uint32_t*)(sigScan("game", "BacklogUnknownPtr8") + baseAddress);
 
+
+
+
   BacklogDispCurPosSY =
       (int*)(sigScan("game", "BacklogDispCurPosSY") + baseAddress);
+
+
+
+
+
+
+
+
+
+
+
 }
 
 void gameTextInit() {
@@ -906,6 +922,27 @@ void gameTextInit() {
     scanCreateEnableHook(
         "game", "drawObtainedTipMessage", (uintptr_t*)&rnDrawTipMessage,
         (LPVOID)drawTipMessageHook, (LPVOID*)&rnDrawTipMessageReal);
+
+    
+    int* MenuGuideButtonPresets =
+        (int*)(sigScan("game", "SaveMenuGuideButton") + baseAddress);
+
+
+    std::vector<uint32_t> buttonIds;
+
+    buttonIds.push_back(107);
+    buttonIds.push_back(10010);
+    buttonIds.push_back(109);
+    buttonIds.push_back(10020);
+    buttonIds.push_back(71);
+    buttonIds.push_back(59);
+    buttonIds.push_back(10100);
+    buttonIds.push_back(105);
+    buttonIds.push_back(10000);
+    buttonIds.push_back(255);
+    lb::memcpy_perms(&MenuGuideButtonPresets[19 * 20], buttonIds.data(),
+                     buttonIds.size() * sizeof(uint32_t));
+
 
     HookBacklog();
   }
@@ -1176,6 +1213,8 @@ void gameTextInit() {
   gameExeLineHeight = 0;
   gameExeSetTipCountReturn = 0;
   gameExeSetTipCountReturn2 = 0;
+  gameExeFixAchievementsReturn = 0;
+  uintptr_t gameExeFixAchievementsOffset;
   BlueSkyPromptFixReturn = 0;
   gameExeSkipCHNOffset = (uintptr_t)sigScan("game", "SkipCHNFixOffset");
   uintptr_t gameExeSkipCHNJump;
