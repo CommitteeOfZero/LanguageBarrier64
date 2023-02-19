@@ -310,14 +310,14 @@ void drawSubs(bool deferred) {
 
       SurfaceWrapper::setTexPtr(surfaceArray, 401, 0, state->subsTexture);
       SurfaceWrapper::setShaderRscView(surfaceArray, 401,state->subRscView);
-      SurfaceWrapper::setField_40(surfaceArray, 401, format.width);
-      SurfaceWrapper::setField_44(surfaceArray, 401, format.height);
-      SurfaceWrapper::setWidth(surfaceArray, 401, format.width);
-      SurfaceWrapper::setHeight(surfaceArray, 401, format.height);
+      SurfaceWrapper::setField_40(surfaceArray, 401, 1920);
+      SurfaceWrapper::setField_44(surfaceArray, 401, 1080);
+      SurfaceWrapper::setWidth(surfaceArray, 401, 1920);
+      SurfaceWrapper::setHeight(surfaceArray, 401, 1080);
       SurfaceWrapper::setEnabled(surfaceArray, 401, 1);
 
 
-      lb::drawSpriteCHNHook(401, 0, 0, format.width, format.height, 0, 0,
+      lb::drawSpriteCHNHook(401, 0, 0, 1920, 1080, 0, 0,
                             16777215, 256);
 
 
