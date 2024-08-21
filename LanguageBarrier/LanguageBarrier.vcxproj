@@ -121,6 +121,9 @@
     <VcpkgConfiguration>Release</VcpkgConfiguration>
     <VcpkgUseStatic>false</VcpkgUseStatic>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='dinput8-Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -297,6 +300,8 @@ endlocal</Command>
     <ClCompile Include="TextReplace.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\vcpkg-configuration.json" />
+    <None Include="..\vcpkg.json" />
     <None Include="dinput8.def" />
   </ItemGroup>
   <ItemGroup>
