@@ -3857,7 +3857,7 @@ void drawSpriteMaskCHNInternalHook(__int64 a1, CHNSurface** a2, __int64 a3,
 
   if (a2[0] == lb::SurfaceWrapper::ptr(surfaceArray, 0x99)) {
     if (a5->x == 93.0f && a5->z == 42.0f && a5->w == 36.0f) {
-      a5->y -= 45.0f;
+      a5->y -= 65.0f;
     }
   }
 
@@ -3925,23 +3925,25 @@ int drawSpriteHook(int textureId, float spriteX, float spriteY,
 void setBacklogContentCHN() {
   gameExeSetBacklogContentReal();
 
-  return;
+  int voicedCount = 0;
+
   for (int i = 0; i < *BacklogLineBufUse; i++) {
-    if ((short)BacklogText[BacklogLineBufEndp[BacklogDispLinePos[i]]] < 0) {
-      *BacklogDispMax += 30;
-      *BacklogDispPos -= 30;
-      for (int j = i; j < *BacklogLineBufUse; j++) BacklogDispLinePosY[j] += 30;
+    if ((short)BacklogText[BacklogLineBufp[BacklogDispLinePos[i]]] < 0) {
+      *BacklogDispMax += 45;
+      voicedCount++;
     }
+
+    BacklogDispLinePosY[i] += 45 * voicedCount;
   }
 
-  return;
+  *BacklogDispPos = std::max<uint32_t>(*BacklogDispMax, 506) - 506;
 }
 
 void __fastcall sub_1400443B0  (
     __int64 a1, __int64 a2, __int64 a3, int a4, int a5, int a6, int a7) {
   const int BACKLOG_START_X = 150;
   const int BACKLOG_START_Y = 94;
-  const int LINE_HEIGHT_OFFSET = 17;
+  const int LINE_HEIGHT_OFFSET = 31;
   const int SHADOW_OFFSET = 1;
   const int VERTICAL_OFFSET = -6;
   const float SCALE_FACTOR = 1.5f;
@@ -3956,9 +3958,11 @@ void __fastcall sub_1400443B0  (
     int textStart = BacklogLineBufp[lineIndex];
 
     if ((short)BacklogText[textStart] < 0) {
-      int baseY = BacklogDispLinePosY[i] - *BacklogDispPos + BACKLOG_START_Y -
-                  LINE_HEIGHT_OFFSET;
+      int baseY = BacklogDispLinePosY[i] + BACKLOG_START_Y - *BacklogDispPos - LINE_HEIGHT_OFFSET;
       int xPos = BACKLOG_START_X;
+
+      BacklogDispNamePosX[i] = BACKLOG_START_X;
+      BacklogDispNamePosY[i] = baseY + BacklogTextPos[(textStart + 1) * 2 + 1];
 
       // Render each character in the line
       for (uint32_t charIndex = textStart + 1;
@@ -3967,7 +3971,7 @@ void __fastcall sub_1400443B0  (
         int charY = baseY + BacklogTextPos[charIndex * 2 + 1];
 
         // CORRECTED: Use charIndex for size calculation
-        float fontSize = BacklogTextSize[4 * charIndex + 3] * SCALE_FACTOR;
+        float fontSize = BacklogTextSize[4 * charIndex + 3] * SCALE_FACTOR * 1.2f;
 
         // Skip rendering if font size is invalid
         if (fontSize <= 0.0f) continue;
@@ -3982,13 +3986,13 @@ void __fastcall sub_1400443B0  (
             glyph->x,
             4 * charIndex,  // CORRECTED: Consistent index
             glyph->x, glyph->y, (float)glyph->width, (float)glyph->rows,
-            xPos + SHADOW_OFFSET + glyph->left,
-            VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET -
+            xPos + SHADOW_OFFSET * 2 + glyph->left,
+            VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET * 2 -
                 glyph->top + fontSize,
-            xPos + SHADOW_OFFSET + glyph->left + glyph->width,
-            VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET -
+            xPos + SHADOW_OFFSET * 2 + glyph->left + glyph->width,
+            VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET * 2 -
                 glyph->top + glyph->rows + fontSize,
-            1947.0f, 32.0f, 6.0f, v53, 0, 128);
+            1947.0f, 32.0f, 6.0f, v53, 0x808080, a7);
 
         // Main text pass
         drawSpriteMask2CHNHook(
@@ -4000,7 +4004,7 @@ void __fastcall sub_1400443B0  (
             xPos + glyph->left + glyph->width,
             VERTICAL_OFFSET + charY * SCALE_FACTOR - glyph->top + glyph->rows +
                 fontSize,
-            1947.0f, 24.0f, 6.0f, v53, 0x333333, a7);
+            1947.0f, 24.0f, 6.0f, v53, 0, a7);
 
         xPos += glyph->advance;
       }
@@ -4017,15 +4021,15 @@ void __fastcall sub_1400443B0  (
           BacklogDispLinePosY[lineIdx] - *BacklogDispPos + BACKLOG_START_Y;
       int lineHeight = BacklogDispLineSize[lineIdx];
 
-      // Initialize position tracking
-      BacklogDispNamePosX[lineIdx] = 0xFFFF;
-      BacklogDispNamePosY[lineIdx] = 0;
       int xPos = BACKLOG_START_X;
 
       if (baseY + lineHeight > 46 && baseY < 646) {
-         xPos = BACKLOG_START_X;
+        xPos = BACKLOG_START_X;
         bool isNameTag = false;
         int charIndex = textStart;
+
+        // Keep value between loops to detect newline
+        int charY = -1;
 
         // Render line characters
         for (int charsProcessed = 0; charsProcessed < textEnd; charsProcessed++,
@@ -4033,7 +4037,7 @@ void __fastcall sub_1400443B0  (
                                                            : charIndex + 1) {
           uint16_t charCode = BacklogText[charIndex];
 
-          if (charCode >= 0) {
+          if (!isNameTag && (short)charCode >= 0) {
             // Calculate character position
             // CORRECTED: Use charIndex for size calculation
             float fontSize =
@@ -4042,7 +4046,10 @@ void __fastcall sub_1400443B0  (
             // Skip rendering if font size is invalid
             if (fontSize <= 0.0f) continue;
 
-            int charY = baseY + BacklogTextPos[charIndex * 2 + 1];
+            // Reset position
+            int tmp = baseY + BacklogTextPos[charIndex * 2 + 1];
+            xPos = charY != tmp ? BACKLOG_START_X : xPos; 
+            charY = tmp;
 
             TextRendering::Get().replaceFontSurface(fontSize);
             auto* glyph = TextRendering::Get()
@@ -4079,20 +4086,10 @@ void __fastcall sub_1400443B0  (
                     glyph->rows + fontSize,
                 1947.0f, 0.0f, 6.0f, v53, mainColor, a7);
 
-            // Update name tag position
-            if (isNameTag && BacklogDispNamePosX[lineIdx] == 0xFFFF) {
-              BacklogDispNamePosX[lineIdx] = xPos;
-              BacklogDispNamePosY[lineIdx] = charY * SCALE_FACTOR + 60;
-            }
-
             xPos += glyph->advance;
           } else {
-            // Handle control characters
-            uint16_t controlCode = charCode & 0x7FFF;
-            if (controlCode == 1)
-              isNameTag = true;
-            else if (controlCode != 2)
-              isNameTag = false;
+            if (charCode == 0x8001) isNameTag = true;
+            else if (charCode == 0x8002) isNameTag = false;
           }
         }
       }
@@ -4112,6 +4109,10 @@ void __fastcall sub_1400443B0  (
       int textStart = BacklogLineBufp[BacklogDispLinePos[lineIdx]];
 
       if (baseY + BacklogDispLineSize[lineIdx] > 46 && baseY < 646) {
+        if ((short)BacklogText[textStart] < 0) {
+          while (BacklogText[textStart++] != 0x8002);
+        }
+
         // CORRECTED: Use textStart for size calculation
         float fontSize = BacklogTextSize[4 * textStart + 3] * SCALE_FACTOR;
         int charY = baseY + BacklogTextPos[textStart * 2 + 1];
