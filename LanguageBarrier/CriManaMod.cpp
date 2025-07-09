@@ -9,9 +9,7 @@
 #include "LanguageBarrier.h"
 #include "SigScan.h"
 #include "DirectXTex.h"
-#include "directxtk/SpriteBatch.h"
-#include "ass/ass.h"
-#include "directxtk/CommonStates.h"
+
 #define FLOATING_POINT
 #define OUTSIDE_SPEEX
 #define RANDOM_PREFIX lb_speexdsp_
@@ -299,7 +297,6 @@ void drawSubs(bool deferred) {
         csri_render(state->csri, &frame, state->time);
       }
 
-      auto m_spriteBatch = std::make_unique<DirectX::SpriteBatch>(test);
       
       gameExePChnD3D11State->pid3d11devicecontext18->Unmap(
           state->stagingTexture, 0);

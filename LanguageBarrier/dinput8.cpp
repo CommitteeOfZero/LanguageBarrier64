@@ -34,6 +34,7 @@ extern "C" HRESULT __stdcall DirectInput8CreateHook(HINSTANCE hinst,
                                                     REFIID riidltf,
                                                     LPVOID* ppvOut,
                                                     LPUNKNOWN punkOuter) {
+
   if (!hRealDinput8) {
     TCHAR expandedPath[MAX_PATH];
     UINT dirLen = GetWindowsDirectory(expandedPath, MAX_PATH);

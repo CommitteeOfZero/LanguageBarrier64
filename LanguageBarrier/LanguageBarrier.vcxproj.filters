@@ -136,6 +136,7 @@
     <None Include="dinput8.def">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="test.asm">

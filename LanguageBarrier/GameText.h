@@ -14,6 +14,7 @@ struct CVector4;
 struct ShaderInfoCHN;
 
 
+
 namespace lb {
 LB_GLOBAL uint8_t FIRST_FONT_ID;
 LB_GLOBAL float COORDS_MULTIPLIER;
@@ -67,7 +68,7 @@ LB_GLOBAL float CC_BACKLOG_HIGHLIGHT_YOFFSET_SHIFT;
 
 GAMETEXT_H_IMPORT int* BacklogLineSave;
 GAMETEXT_H_IMPORT int* BacklogDispLinePos;
-GAMETEXT_H_IMPORT int* BacklogLineBufSize;
+GAMETEXT_H_IMPORT int* BacklogLineBufp;
 GAMETEXT_H_IMPORT int16_t* BacklogTextPos;
 GAMETEXT_H_IMPORT int* BacklogLineBufUse;
 GAMETEXT_H_IMPORT uint16_t* BacklogText;
@@ -88,7 +89,7 @@ GAMETEXT_H_IMPORT int* BacklogLineVoice;
 GAMETEXT_H_IMPORT int* BacklogDispLinePosY;
 GAMETEXT_H_IMPORT int* BacklogDispCurPosSY;
 GAMETEXT_H_IMPORT int* BacklogDispCurPosSY;
-
+GAMETEXT_H_IMPORT int* gameExeNameTagOffset;
 struct CHNDialoguePage_t;
 
 extern  CHNDialoguePage_t* gameExeDialoguePages_CHNDialoguePage_t;
@@ -130,12 +131,25 @@ void drawSpriteMaskCHNInternalHook(__int64 a1, CHNSurface** a2, __int64 a3,
 void __fastcall sub_1400443B0(__int64 a1, __int64 a2, __int64 a3, int a4,
                                  int a5, int a6, int a7);
 
+
+void __fastcall drawBacklogSpeaker(unsigned int a1, int a2, int a3, int a4);
+
 __int64 __fastcall ChatLayout(unsigned int a1, char* a2, unsigned int a3);
 __int64 __fastcall ChatLayout2(char* a2, unsigned int a1, unsigned int a3);
 }  // namespace lb
+typedef void(__cdecl* SetBacklogContentProc)();
+typedef void(__fastcall* DrawBacklogSpeakerProc)(unsigned int a1, int a2,
+                                                 int a3, int a4);
 
 
 extern "C" {
+
+inline SetBacklogContentProc gameExeSetBacklogContent;
+extern SetBacklogContentProc gameExeSetBacklogContentReal;
+inline DrawBacklogSpeakerProc gameExeDrawBacklogSpeaker;
+extern DrawBacklogSpeakerProc gameExeDrawBacklogSpeakerReal;
+
+
 inline uint8_t widths[lb::TOTAL_NUM_FONT_CELLS];
 inline uintptr_t gameExeDialogueLayoutWidthLookup1Return;
 inline uintptr_t gameExeDialogueLayoutWidthLookup2Return;

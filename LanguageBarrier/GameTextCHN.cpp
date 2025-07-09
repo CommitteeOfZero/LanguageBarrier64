@@ -53,6 +53,9 @@ struct CHNDialoguePage_t {
   char charDisplayOpacity[2400];
 };
  CHNDialoguePage_t* gameExeDialoguePages_CHNDialoguePage_t = NULL;
+ int* gameExeNameTagOffset;
+
+
 
 void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
                                  uint32_t opacity, int xOffset, int yOffset) {
@@ -83,7 +86,7 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
       //}
       float displayStartX =
           (page->charDisplayX[i] + xOffset) * lb::COORDS_MULTIPLIER;
-
+      int* nameOffset = (int*)gameExeNameTagOffset;
       uint32_t _opacity = (page->charDisplayOpacity[i] * opacity) >> 8;
       if (page->charOutlineColor[i] != -1) {
         {
@@ -100,6 +103,8 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
           __int16 fontSize = page->glyphDisplayHeight[i] * 1.5f;
           float yOffset = -6.0f * fontSize / 48.0f;
           TextRendering::Get().replaceFontSurface(fontSize);
+
+          if (displayStartY == 757.5f || displayStartY == 760.5f) displayStartX += *nameOffset * 0.75f;
           if (glyphInfo->width && glyphInfo->rows)
             lb::drawSpriteCHNHook(
                 TextRendering::Get().FONT_TEXTURE_ID, glyphInfo->x,
@@ -111,7 +116,7 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
       }
       {
         auto glyphsPerRow = TextRendering::Get().GLYPHS_PER_ROW;
-        uint32_t currentChar =
+        wchar_t currentChar =
             page->glyphCol[i] + page->glyphRow[i] * glyphsPerRow;
         auto glyphInfo = TextRendering::Get()
                              .getFont(page->glyphDisplayHeight[i] * 1.5f, false)
