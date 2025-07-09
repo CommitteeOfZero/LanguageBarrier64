@@ -841,6 +841,19 @@ void gameInit() {
         "game", "setAreaParams", (uintptr_t*)&gameExeSetAreaParams,
         (LPVOID)setAreaParamsHook, (LPVOID*)&gameExeSetAreaParamsReal);
   }
+
+  // C;HN only
+  if (config["gamedef"]["signatures"]["game"].count("FixEarlyShortcut")) {
+    uint8_t* cmp = (uint8_t*)sigScan("game", "FixEarlyShortcut");
+    if (cmp != NULL) {
+      // Patching comparison + NOP since original is 4 bytes long while this one is 3
+      // test r8d, r8d
+      // nop
+      memset_perms(cmp, (0x4585C0 << 2) | INST_NOP, 4);
+    }
+  }
+
+
 }
 
 // earlyInit is called after all the subsystems have been initialised but before

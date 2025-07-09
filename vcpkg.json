@@ -1,0 +1,11 @@
+{
+  "dependencies": [
+    "minhook",
+    "directxtex",
+    "freetype",
+    "nlohmann-json",
+    "cereal",
+    "libass",
+    "directxtk"
+  ]
+}
