@@ -623,6 +623,9 @@ void drawPhoneCallNameHook(int textureId, int maskId, int startX, int startY,
                            signed int opacity);
 int __cdecl SetDialoguePageValuesHook(int page, uint8_t* data);
 
+// Link with Game.cpp
+BOOL __cdecl GetFlag(unsigned int a1);
+
 int* BacklogLineSave;
 int* BacklogDispLinePos;
 int* BacklogLineBufp;
@@ -3855,7 +3858,7 @@ void drawSpriteMaskCHNInternalHook(__int64 a1, CHNSurface** a2, __int64 a3,
     a2[0] = (CHNSurface*)lb::SurfaceWrapper::ptr(surfaceArray, 400);
   }
 
-  if (a2[0] == lb::SurfaceWrapper::ptr(surfaceArray, 0x99)) {
+  if (a2[0] == lb::SurfaceWrapper::ptr(surfaceArray, 0x99) && GetFlag(801)) {
     if (a5->x == 93.0f && a5->z == 42.0f && a5->w == 36.0f) {
       a5->y -= 65.0f;
     }
@@ -3924,6 +3927,7 @@ int drawSpriteHook(int textureId, float spriteX, float spriteY,
 
 void setBacklogContentCHN() {
   gameExeSetBacklogContentReal();
+  if (!GetFlag(801)) return;
 
   int voicedCount = 0;
 
@@ -3953,60 +3957,65 @@ void __fastcall sub_1400443B0  (
   int v53 = 0;  // Render state flag
 
   // Render special lines (starting with negative character)
-  for (uint32_t i = 0; i < lineCount; i++) {
-    int lineIndex = BacklogDispLinePos[i];
-    int textStart = BacklogLineBufp[lineIndex];
+  if (GetFlag(801)) {
+    for (uint32_t i = 0; i < lineCount; i++) {
+      int lineIndex = BacklogDispLinePos[i];
+      int textStart = BacklogLineBufp[lineIndex];
 
-    if ((short)BacklogText[textStart] < 0) {
-      int baseY = BacklogDispLinePosY[i] + BACKLOG_START_Y - *BacklogDispPos - LINE_HEIGHT_OFFSET;
-      int xPos = BACKLOG_START_X;
+      if ((short)BacklogText[textStart] < 0) {
+        int baseY = BacklogDispLinePosY[i] + BACKLOG_START_Y - *BacklogDispPos -
+                    LINE_HEIGHT_OFFSET;
+        int xPos = BACKLOG_START_X;
 
-      BacklogDispNamePosX[i] = BACKLOG_START_X;
-      BacklogDispNamePosY[i] = baseY + BacklogTextPos[(textStart + 1) * 2 + 1];
+        BacklogDispNamePosX[i] = BACKLOG_START_X;
+        BacklogDispNamePosY[i] =
+            baseY + BacklogTextPos[(textStart + 1) * 2 + 1];
 
-      // Render each character in the line
-      for (uint32_t charIndex = textStart + 1;
-           (short)BacklogText[charIndex] > 0; charIndex++) {
-        uint16_t charCode = BacklogText[charIndex];
-        int charY = baseY + BacklogTextPos[charIndex * 2 + 1];
+        // Render each character in the line
+        for (uint32_t charIndex = textStart + 1;
+             (short)BacklogText[charIndex] > 0; charIndex++) {
+          uint16_t charCode = BacklogText[charIndex];
+          int charY = baseY + BacklogTextPos[charIndex * 2 + 1];
 
-        // CORRECTED: Use charIndex for size calculation
-        float fontSize = BacklogTextSize[4 * charIndex + 3] * SCALE_FACTOR * 1.2f;
+          // CORRECTED: Use charIndex for size calculation
+          float fontSize =
+              BacklogTextSize[4 * charIndex + 3] * SCALE_FACTOR * 1.2f;
 
-        // Skip rendering if font size is invalid
-        if (fontSize <= 0.0f) continue;
+          // Skip rendering if font size is invalid
+          if (fontSize <= 0.0f) continue;
 
-        TextRendering::Get().replaceFontSurface(fontSize);
-        auto* glyph = TextRendering::Get()
-                               .getFont(fontSize, true)
-                               ->getGlyphInfo(charCode, Regular);
+          TextRendering::Get().replaceFontSurface(fontSize);
+          auto* glyph = TextRendering::Get()
+                            .getFont(fontSize, true)
+                            ->getGlyphInfo(charCode, Regular);
 
-        // Shadow pass
-        drawSpriteMask2CHNHook(
-            glyph->x,
-            4 * charIndex,  // CORRECTED: Consistent index
-            glyph->x, glyph->y, (float)glyph->width, (float)glyph->rows,
-            xPos + SHADOW_OFFSET * 2 + glyph->left,
-            VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET * 2 -
-                glyph->top + fontSize,
-            xPos + SHADOW_OFFSET * 2 + glyph->left + glyph->width,
-            VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET * 2 -
-                glyph->top + glyph->rows + fontSize,
-            1947.0f, 32.0f, 6.0f, v53, 0x808080, a7);
+          // Shadow pass
+          drawSpriteMask2CHNHook(
+              glyph->x,
+              4 * charIndex,  // CORRECTED: Consistent index
+              glyph->x, glyph->y, (float)glyph->width, (float)glyph->rows,
+              xPos + SHADOW_OFFSET * 2 + glyph->left,
+              VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET * 2 -
+                  glyph->top + fontSize,
+              xPos + SHADOW_OFFSET * 2 + glyph->left + glyph->width,
+              VERTICAL_OFFSET + charY * SCALE_FACTOR + SHADOW_OFFSET * 2 -
+                  glyph->top + glyph->rows + fontSize,
+              1947.0f, 32.0f, 6.0f, v53, 0x808080, a7);
 
-        // Main text pass
-        drawSpriteMask2CHNHook(
-            glyph->x,
-            4 * charIndex,  // CORRECTED: Consistent index
-            glyph->x, glyph->y, (float)glyph->width, (float)glyph->rows,
-            xPos + glyph->left,
-            VERTICAL_OFFSET + charY * SCALE_FACTOR - glyph->top + fontSize,
-            xPos + glyph->left + glyph->width,
-            VERTICAL_OFFSET + charY * SCALE_FACTOR - glyph->top + glyph->rows +
-                fontSize,
-            1947.0f, 24.0f, 6.0f, v53, 0, a7);
+          // Main text pass
+          drawSpriteMask2CHNHook(
+              glyph->x,
+              4 * charIndex,  // CORRECTED: Consistent index
+              glyph->x, glyph->y, (float)glyph->width, (float)glyph->rows,
+              xPos + glyph->left,
+              VERTICAL_OFFSET + charY * SCALE_FACTOR - glyph->top + fontSize,
+              xPos + glyph->left + glyph->width,
+              VERTICAL_OFFSET + charY * SCALE_FACTOR - glyph->top +
+                  glyph->rows + fontSize,
+              1947.0f, 24.0f, 6.0f, v53, 0, a7);
 
-        xPos += glyph->advance;
+          xPos += glyph->advance;
+        }
       }
     }
   }

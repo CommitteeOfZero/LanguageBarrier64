@@ -55,7 +55,8 @@ struct CHNDialoguePage_t {
  CHNDialoguePage_t* gameExeDialoguePages_CHNDialoguePage_t = NULL;
  int* gameExeNameTagOffset;
 
-
+ // Link with Game.cpp
+ BOOL __cdecl GetFlag(unsigned int a1);
 
 void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
                                  uint32_t opacity, int xOffset, int yOffset) {
@@ -104,7 +105,10 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
           float yOffset = -6.0f * fontSize / 48.0f;
           TextRendering::Get().replaceFontSurface(fontSize);
 
-          if (displayStartY == 757.5f || displayStartY == 760.5f) displayStartX += *nameOffset * 0.75f;
+          if (displayStartY == 757.5f || displayStartY == 760.5f) {
+            if (!GetFlag(801)) break;
+            displayStartX += *nameOffset * 0.75f;
+          }
           if (glyphInfo->width && glyphInfo->rows)
             lb::drawSpriteCHNHook(
                 TextRendering::Get().FONT_TEXTURE_ID, glyphInfo->x,

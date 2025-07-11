@@ -22,6 +22,7 @@
 #include "CustomInputRND.h"
 #include <regex>
 #include <thread>
+#include <optional>
 
 typedef int(__cdecl* EarlyInitProc)(int unk0, int unk1);
 static EarlyInitProc gameExeEarlyInit = NULL;
@@ -413,6 +414,37 @@ ShaderInfoCHN* pixelShaderArray2 = nullptr;
 static std::chrono::high_resolution_clock c;
 std::chrono::time_point<std::chrono::steady_clock> old;
 
+typedef void(__fastcall* OptionMainProc)(void);
+OptionMainProc gameExeOptionMain = NULL;
+OptionMainProc gameExeOptionMainReal = NULL;
+
+typedef void(__fastcall* criAtomExPlayer_SetVolumeProc)(void* a1, float a2);
+criAtomExPlayer_SetVolumeProc gameExecriAtomExPlayer_SetVolume = NULL;
+
+typedef void(__fastcall* criAtomExPlayer_UpdateAllProc)(void* a1);
+criAtomExPlayer_UpdateAllProc gameExecriAtomExPlayer_UpdateAll = NULL;
+
+typedef uint64_t(__fastcall* PlayStartIndexProc)(void* a1, void* a2,
+                                                 uint32_t index);
+PlayStartIndexProc gameExePlayStartIndex = NULL;
+
+typedef uint8_t (__fastcall* PollInputProc)(int a1, int a2, char a3);
+PollInputProc gameExePollInput = NULL;
+
+static auto* OPTmenuMode = reinterpret_cast<uint32_t*>(0x1405b09b4);
+static auto* OPTmenuCur = reinterpret_cast<uint32_t*>(0x1405b09a0);
+static auto* OPTmenuPage = reinterpret_cast<uint32_t*>(0x1405af928);
+static auto* OPTmenuMaxCur = reinterpret_cast<uint32_t*>(0x14020d218);
+
+static auto* SYSSEvol = reinterpret_cast<uint32_t*>(0x1417ac2e8);
+static auto* SNDsseVol = reinterpret_cast<uint32_t*>(0x1405a7100);
+static auto* AudioPlayerUnk = reinterpret_cast<void*>(0x141dc3df0);
+static auto* AudioPlayerUnk2 = reinterpret_cast<void*>(0x141c21f10);
+
+static auto* PADcustom = reinterpret_cast<uint32_t*>(0x140872dc0);
+static auto* PADref = reinterpret_cast<uint32_t*>(0x1405a6f74);
+static auto* PADone = reinterpret_cast<uint32_t*>(0x1405a70d4);
+
 void preciseSleep(double seconds) {
   using namespace std;
   using namespace std::chrono;
@@ -491,6 +523,9 @@ int __cdecl mountArchiveHookRND(int id, const char* mountPoint, int unk01,
 
 unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
                                              unsigned __int8* a3);
+
+void __fastcall OptionMainHook(void);
+
 static int* gameExeEpList = NULL;  // = (int *)0x52E1E8;
 
 unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
@@ -853,7 +888,18 @@ void gameInit() {
     }
   }
 
+  if (config["patch"].count("CHNNametags") && config["patch"]["CHNNametags"].get<bool>()) {
+    scanCreateEnableHook("game", "OptionMain", reinterpret_cast<uintptr_t*>(&gameExeOptionMain),
+        reinterpret_cast<LPVOID>(OptionMainHook), reinterpret_cast<LPVOID*>(&gameExeOptionMainReal));
 
+    gameExecriAtomExPlayer_SetVolume = reinterpret_cast<criAtomExPlayer_SetVolumeProc>(sigScan("game", "criAtomExPlayer_SetVolume"));
+    gameExecriAtomExPlayer_UpdateAll = reinterpret_cast<criAtomExPlayer_UpdateAllProc>(sigScan("game", "criAtomExPlayer_UpdateAll"));
+    gameExePlayStartIndex = reinterpret_cast<PlayStartIndexProc>(sigScan("game", "PlayStartIndex"));
+    gameExePollInput = reinterpret_cast<PollInputProc>(sigScan("game", "PollInput"));
+
+    // Inform game of extra option
+    OPTmenuMaxCur[1] = 3 + 1;
+  }
 }
 
 // earlyInit is called after all the subsystems have been initialised but before
@@ -1507,5 +1553,65 @@ void gameSetBgmPaused(bool paused) {
 }
 bool gameGetBgmIsPlaying() {
   return gameExeAudioPlayers[AUDIO_PLAYER_ID_BGM1].playbackState == 2;
+}
+
+enum class ToggleSel : uint8_t {
+  OFF,
+  ON,
+};
+
+static auto NPToggleSel = std::optional<ToggleSel>();
+
+void SSEvolume(uint32_t volume) { *SNDsseVol = (*SYSSEvol * 70.0f) / 100.0f; }
+
+void SSEplay(uint32_t index) {
+  // Updating volume
+  static void* AudioPlayerUnk3 =
+      *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(AudioPlayerUnk) + 0x200); // pThis = (this + 0x200)
+  static float* AudioPlayerVol = reinterpret_cast<float*>(AudioPlayerUnk) + 6; // (this + 24)
+
+  if (AudioPlayerUnk == nullptr) return;
+  float tmp = *SNDsseVol / 128.0f;
+  tmp = std::max<float>(tmp, 0.0f);
+  tmp = std::min<float>(tmp, 1.0f);
+  *AudioPlayerVol = tmp;
+  
+  gameExecriAtomExPlayer_SetVolume(AudioPlayerUnk3, *AudioPlayerVol);
+  gameExecriAtomExPlayer_UpdateAll(AudioPlayerUnk3);
+
+  // Actually playing
+  static_cast<void>(gameExePlayStartIndex(AudioPlayerUnk, AudioPlayerUnk2, index));
+}
+
+void __fastcall OptionMainHook(void) {
+  if (*OPTmenuMode != 2 || OPTmenuCur[*OPTmenuPage] != 3) {
+    gameExeOptionMainReal();
+
+    if (*OPTmenuMode == 2 && OPTmenuCur[*OPTmenuPage] == 3)
+      NPToggleSel = ToggleSel(static_cast<uint8_t>(GetFlag(801)));
+
+    return;
+  }
+
+  uint32_t counter = 0;
+
+  while (!gameExePollInput(0x16, counter++, 1)) {
+    if (counter >= OPTmenuMaxCur[1]) return;
+  }
+
+  if (((PADcustom[2] | PADcustom[3]) & *PADref) != 0) {
+    SSEvolume(*SYSSEvol);
+    SSEplay(1);
+    NPToggleSel = ToggleSel(static_cast<uint8_t>(*NPToggleSel) ^ 1);
+  } else if ((PADcustom[5] & *PADone) != 0) {
+    SSEvolume(*SYSSEvol);
+    SSEplay(2);
+    gameExeSetFlag(801, static_cast<uint8_t>(*NPToggleSel));
+    *OPTmenuMode = 1;
+  } else if ((PADcustom[6] & *PADone) != 0) {
+    SSEplay(*SYSSEvol);
+    SSEplay(3);
+    *OPTmenuMode = 1;
+  }
 }
 }  // namespace lb
