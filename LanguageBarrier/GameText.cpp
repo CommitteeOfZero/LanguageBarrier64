@@ -1598,7 +1598,7 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
         word = {++sc3string, NULL, 0, false, false};
         break;
       case 4:
-        sc3.pc = sc3string + 1;
+        sc3.pc = reinterpret_cast<uint8_t*>(sc3string) + 1;
         gameExeSc3Eval(&sc3, &sc3evalResult);
         sc3string = (char*)sc3.pc;
         break;
@@ -2642,7 +2642,7 @@ void processSc3TokenList(int xOffset, int yOffset, int lineLength,
           goto afterWord;
           break;
         case 4:
-          sc3.pc = sc3string + 1;
+          sc3.pc = reinterpret_cast<uint8_t*>(sc3string) + 1;
           gameExeSc3Eval(&sc3, &sc3evalResult);
           sc3string = (char*)sc3.pc;
           int scrWorkColor;
@@ -2813,7 +2813,7 @@ int __cdecl getSc3StringDisplayWidthHook(char* sc3string,
     fontData = TextRendering::Get().getFont(baseGlyphSize, true);
   while (i <= maxCharacters && (c = *sc3string) != -1) {
     if (c == 4) {
-      sc3.pc = sc3string + 1;
+      sc3.pc = reinterpret_cast<uint8_t*>(sc3string) + 1;
       gameExeSc3Eval(&sc3, &sc3evalResult);
       sc3string = (char*)sc3.pc;
     } else if (c < 0) {
@@ -3622,7 +3622,7 @@ __int64 __fastcall ChatLayout(unsigned int a1, char* a2, unsigned int a3) {
           v4 = 0;
           break;
         case 4:
-          v12.pc = a2 + 1;
+          v12.pc = reinterpret_cast<uint8_t*>(a2) + 1;
           gameExeSc3Eval(&v12, &v13);
           a2 = (char*)v12.pc;
           break;
@@ -3708,7 +3708,7 @@ __int64 __fastcall ChatLayout2(char* a1, unsigned int a2, unsigned int a3) {
       goto LABEL_14;
     }
     if (v8 == 4) {
-      v13.pc = v5 + 1;
+      v13.pc = reinterpret_cast<uint8_t*>(v5) + 1;
       gameExeSc3Eval(&v13, (int*)v14);
       v5 = (char*)v13.pc;
     LABEL_14:

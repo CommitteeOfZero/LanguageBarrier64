@@ -50,6 +50,7 @@
     <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;$(ProjectDir)contrib\lib\Debug;$(ProjectDir)contrib\lib\xy-vsfilter</LibraryPath>
     <ExecutablePath>$(VC_ExecutablePath_x64);$(CommonExecutablePath);$(FxCopDir);$(PATH);$(ProjectDir)contrib\bin</ExecutablePath>
     <Linkage-freetype>static</Linkage-freetype>
+    <OutDir>C:\Program Files %28x86%29\Steam\steamapps\common\CHAOS%3bHEAD NOAH\HEAD NOAH</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='dinput8-Release|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -150,6 +151,8 @@ endlocal</Command>
     <ClInclude Include="CustomInputRND.h" />
     <ClInclude Include="CustomInputRNE.h" />
     <ClInclude Include="DialogueWordwrap.h" />
+    <ClInclude Include="ScriptDebugger.h" />
+    <ClInclude Include="ScriptDebuggerHooks.h" />
     <ClInclude Include="TextRendering.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameText.h" />
@@ -173,6 +176,7 @@ endlocal</Command>
     <ClCompile Include="dinput8.cpp" />
     <ClCompile Include="GameTextCHN.cpp" />
     <ClCompile Include="libass_csri.cpp" />
+    <ClCompile Include="ScriptDebugger.cpp" />
     <ClCompile Include="TextRendering.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameText.cpp" />

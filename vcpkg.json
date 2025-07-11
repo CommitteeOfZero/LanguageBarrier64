@@ -6,6 +6,12 @@
     "nlohmann-json",
     "cereal",
     "libass",
-    "directxtk"
+    "directxtk",
+    {
+      "name": "imgui",
+      "default-features": true,
+      "features": [ "win32-binding", "dx9-binding", "dx11-binding", "docking-experimental" ]
+    },
+    "better-enums"
   ]
 }
