@@ -1611,9 +1611,9 @@ void __fastcall OptionMainHook(void) {
   }
 
   // Only register left click within the bounds
-  if (counter < 2) *PADone |= PADcustom[5] * (*MouseClick & 1);
+  if (counter < 2) *PADone |= PADcustom[5] * (int)((*MouseClick & 1) != 0);
   // Right click to go back works no matter what
-  *PADone |= PADcustom[6] * (*MouseClick & 2);
+  *PADone |= PADcustom[6] * (int)((*MouseClick & 2) != 0);
 
   // Hover selection
   if ((counter < 2 && *NPToggleSel != ToggleSel(counter)) || /* When mouse is hovering over a checkbox other than the currently hovered one */ 
