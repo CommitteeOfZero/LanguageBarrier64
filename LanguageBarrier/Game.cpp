@@ -441,11 +441,11 @@ static uint32_t* PADref = NULL;
 static uint32_t* PADone = NULL;
 
 
-uint32_t* dword_141BADF6C = (uint32_t*)0x141BADF6C;
-uint64_t* qword_141BADF88 = (uint64_t*)0x141BADF88;
-uint32_t* dword_1417ADF98 = (uint32_t*)0x1417ADF98;
+static uint32_t* dword_141BADF6C = NULL; //(uint32_t*)0x141BADF6C;
+static uint64_t* qword_141BADF88 = NULL; //(uint64_t*)0x141BADF88;
+static uint32_t* dword_1417ADF98 = NULL; //(uint32_t*)0x1417ADF98;
 
-static uint8_t* MouseClick = (uint8_t*)0x1417add90;
+static uint8_t* MouseClick = NULL;
 
 void preciseSleep(double seconds) {
   using namespace std;
@@ -919,6 +919,13 @@ void gameInit() {
     PADcustom = reinterpret_cast<uint32_t*>(sigScan("game", "PADcustom"));
     PADone = reinterpret_cast<uint32_t*>(sigScan("game", "PADone"));
     PADref = reinterpret_cast<uint32_t*>(sigScan("game", "PADref"));
+
+    uintptr_t baseAddress = (uintptr_t)GetModuleHandle(0);
+    dword_141BADF6C = reinterpret_cast<uint32_t*>(sigScan("game", "BacklogUnknownPtr3") + baseAddress);
+    qword_141BADF88 = reinterpret_cast<uint64_t*>(sigScan("game", "BacklogUnknownPtr4") + baseAddress);
+    dword_1417ADF98 = reinterpret_cast<uint32_t*>(sigScan("game", "BacklogUnknownPtr8") + baseAddress);
+
+    MouseClick = reinterpret_cast<uint8_t*>(sigScan("game", "MouseClick"));
 
     // Inform game of extra option
     OPTmenuMaxCur[1] = 3 + 1;

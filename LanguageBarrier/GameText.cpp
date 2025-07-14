@@ -723,9 +723,6 @@ void HookBacklog() {
   dword_1417ADF98 =
       (uint32_t*)(sigScan("game", "BacklogUnknownPtr8") + baseAddress);
 
-  dword_1417ADF98 =
-      (uint32_t*)(sigScan("game", "BacklogUnknownPtr8") + baseAddress);
-
   BacklogDispMax = (uint32_t*)(sigScan("game", "BacklogDispMax") + baseAddress);
 
   BacklogDispCurPosSY =
