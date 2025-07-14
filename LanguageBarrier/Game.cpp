@@ -424,6 +424,10 @@ SSEplayProc gameExeSSEplay = NULL;
 typedef uint8_t (__fastcall* PollInputProc)(int a1, int a2, char a3);
 PollInputProc gameExePollInput = NULL;
 
+typedef void(__fastcall* OptionDispChip2Proc)(unsigned int a1);
+OptionDispChip2Proc gameExeOptionDispChip2 = NULL;
+OptionDispChip2Proc gameExeOptionDispChip2Real = NULL;
+
 static uint32_t* OPTmenuMode = NULL;
 static uint32_t* OPTmenuCur = NULL;
 static uint32_t* OPTmenuPage = NULL;
@@ -435,6 +439,13 @@ static uint32_t* SNDsseVol = NULL;
 static uint32_t* PADcustom = NULL;
 static uint32_t* PADref = NULL;
 static uint32_t* PADone = NULL;
+
+
+uint32_t* dword_141BADF6C = (uint32_t*)0x141BADF6C;
+uint64_t* qword_141BADF88 = (uint64_t*)0x141BADF88;
+uint32_t* dword_1417ADF98 = (uint32_t*)0x1417ADF98;
+
+static uint8_t* MouseClick = (uint8_t*)0x1417add90;
 
 void preciseSleep(double seconds) {
   using namespace std;
@@ -516,6 +527,7 @@ unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
                                              unsigned __int8* a3);
 
 void __fastcall OptionMainHook(void);
+void __fastcall OptionDispChip2Hook(unsigned int a1);
 
 static int* gameExeEpList = NULL;  // = (int *)0x52E1E8;
 
@@ -547,6 +559,15 @@ BOOL __cdecl GetFlag(unsigned int a1) {
 
   return ((unsigned __int8)(1 << (a1 - 8 * (a1 >> 3))) &
           *((uint8_t*)FlagWork + (a1 >> 3))) != 0;
+}
+
+void __cdecl SetFlag(int flagId, BOOL value) {
+  if (!FlagWork) {
+    FlagWork = *(uint8_t**)sigScan("game", "FlagWork");
+  }
+
+  if (value) FlagWork[flagId >> 3] |= (1 << (flagId & 7));
+  else FlagWork[flagId >> 3] ^= (1 << (flagId & 7));
 }
 
 void TitleScreenRenderCHN() {
@@ -882,6 +903,9 @@ void gameInit() {
   if (config["patch"].count("CHNNametags") && config["patch"]["CHNNametags"].get<bool>()) {
     scanCreateEnableHook("game", "OptionMain", reinterpret_cast<uintptr_t*>(&gameExeOptionMain),
         reinterpret_cast<LPVOID>(OptionMainHook), reinterpret_cast<LPVOID*>(&gameExeOptionMainReal));
+
+    scanCreateEnableHook("game", "OptionDispChip2", reinterpret_cast<uintptr_t*>(&gameExeOptionDispChip2),
+        reinterpret_cast<LPVOID>(OptionDispChip2Hook), reinterpret_cast<LPVOID*>(&gameExeOptionDispChip2Real));
 
     gameExeSSEplay = reinterpret_cast<SSEplayProc>(sigScan("game", "SSEplay"));
     gameExePollInput = reinterpret_cast<PollInputProc>(sigScan("game", "PollInput"));
@@ -1573,20 +1597,27 @@ void __fastcall OptionMainHook(void) {
     return;
   }
 
+  // Check if any mouse is over either checkbox
   uint32_t counter = 0;
-
-  while (!gameExePollInput(0x16, counter++, 1)) {
-    if (counter >= OPTmenuMaxCur[1]) return;
+  while (!gameExePollInput(22, counter, 1)) {
+    if (++counter >= 2) break;
   }
 
-  if (((PADcustom[2] | PADcustom[3]) & *PADref) != 0) {
+  // Only register left click within the bounds
+  if (counter < 2) *PADone |= PADcustom[5] * (*MouseClick & 1);
+  // Right click to go back works no matter what
+  *PADone |= PADcustom[6] * (*MouseClick & 2);
+
+  // Hover selection
+  if ((counter < 2 && *NPToggleSel != ToggleSel(counter)) || /* When mouse is hovering over a checkbox other than the currently hovered one */ 
+      (((PADcustom[2] | PADcustom[3]) & *PADref) != 0)) {    /* When left or right keys/buttons are pressed to cycle selection */
     SSEvolume(*SYSSEvol);
     gameExeSSEplay(1, 0xFFFFFFFF);
     NPToggleSel = ToggleSel(static_cast<uint8_t>(*NPToggleSel) ^ 1);
   } else if ((PADcustom[5] & *PADone) != 0) {
     SSEvolume(*SYSSEvol);
     gameExeSSEplay(2, 0xFFFFFFFF);
-    gameExeSetFlag(801, static_cast<uint8_t>(*NPToggleSel));
+    SetFlag(801, static_cast<uint8_t>(*NPToggleSel));
     *OPTmenuMode = 1;
   } else if ((PADcustom[6] & *PADone) != 0) {
     SSEvolume(*SYSSEvol);
@@ -1594,4 +1625,64 @@ void __fastcall OptionMainHook(void) {
     *OPTmenuMode = 1;
   }
 }
+
+void __fastcall OptionDispChip2Hook(unsigned int a1) {
+  gameExeOptionDispChip2Real(a1);
+
+  uint32_t selectorCount = *dword_141BADF6C;
+  if (selectorCount < *dword_1417ADF98) {
+
+    uint32_t idx = selectorCount++;
+    *dword_141BADF6C = selectorCount;
+
+    __int64 recordIndex = 9 * idx;
+    *(uint32_t*)(*qword_141BADF88 + 8 * recordIndex + 8) = 3;
+    *(uint32_t*)(*qword_141BADF88 + 8 * recordIndex + 4) = 20;
+    *(uint8_t*)(*qword_141BADF88 + 8 * recordIndex) = 1;
+    *(CVector4*)(*qword_141BADF88 + 8 * recordIndex + 24) = { 238.0f, 590.0f, 1443.0f, 54.0f };
+  }
+
+  const bool selecting = *OPTmenuMode == 2 && OPTmenuCur[*OPTmenuPage] == 3;
+
+  if (selecting) {
+    selectorCount = *dword_141BADF6C;
+    if (selectorCount < *dword_1417ADF98) {
+      uint32_t idx = selectorCount++;
+      *dword_141BADF6C = selectorCount;
+      __int64 recordIndex = 9 * idx;
+      *(uint32_t*)(*qword_141BADF88 + 8 * recordIndex + 8) = static_cast<uint32_t>(ToggleSel::ON);
+      *(uint32_t*)(*qword_141BADF88 + 8 * recordIndex + 4) = 22;
+      *(uint8_t*)(*qword_141BADF88  + 8 * recordIndex) = 1;
+      *(CVector4*)(*qword_141BADF88 + 8 * recordIndex + 24) = { 1414.0f, 596.0f, 42.0f, 42.0f };
+    }
+    selectorCount = *dword_141BADF6C;
+    if (selectorCount < *dword_1417ADF98) {
+      uint32_t idx = selectorCount++;
+      *dword_141BADF6C = selectorCount;
+      __int64 recordIndex = 9 * idx;
+      *(uint32_t*)(*qword_141BADF88 + 8 * recordIndex + 8) = static_cast<uint32_t>(ToggleSel::OFF);
+      *(uint32_t*)(*qword_141BADF88 + 8 * recordIndex + 4) = 22;
+      *(uint8_t*)(*qword_141BADF88  + 8 * recordIndex) = 1;
+      *(CVector4*)(*qword_141BADF88 + 8 * recordIndex + 24) = { 1540.0f, 596.0f, 42.0f, 42.0f };
+    }
+  }
+
+  // Nametag option text
+  drawSpriteCHNHook(152, (int)selecting * 577.0f, 2959.0f, 147.0f, 35.0f, 242.0f, 602.0f, 0xFFFFFF, a1);
+  // Divider
+  drawSpriteCHNHook(152, 0.0f, 1346.0f, 1443.0f, 6.0f, 238.0f, 643.0f, 0xFFFFFF, a1);
+
+  // On/Off checkboxes
+  drawSpriteCHNHook(152, 1449.0f, 1086.0f, 115.0f, 40.0f, 1411.0f, 601.0f, 0xFFFFFF, a1);
+  drawSpriteCHNHook(152, 1449.0f, 1126.0f, 115.0f, 40.0f, 1537.0f, 601.0f, 0xFFFFFF, a1);
+
+  if (selecting) {
+    // Hover marker while selecting
+    drawSpriteCHNHook( 152, 1517.0f, 1408.0f, 42.0f, 42.0f, 1414.0f + 126.0f * (int)(*NPToggleSel == ToggleSel::OFF), 596.0f, 0xFFFFFF, a1);
+  }
+
+  // Checkmark on currently toggled option
+  drawSpriteCHNHook(152, 1565.0f, 1408.0f, 42.0f, 42.0f, 1413.0f + 126.0f * (int)(!GetFlag(801)), 596.0f, 0xFFFFFF, a1);
+}
+
 }  // namespace lb

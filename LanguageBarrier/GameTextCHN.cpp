@@ -106,7 +106,7 @@ void __cdecl chnDrawDialogueHook(int fontNumber, int pageNumber,
           TextRendering::Get().replaceFontSurface(fontSize);
 
           if (displayStartY == 757.5f || displayStartY == 760.5f) {
-            if (!GetFlag(801)) break;
+            if (!GetFlag(801)) continue;
             displayStartX += *nameOffset * 0.75f;
           }
           if (glyphInfo->width && glyphInfo->rows)
