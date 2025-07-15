@@ -1595,10 +1595,10 @@ static auto NPToggleSel = std::optional<ToggleSel>();
 void SSEvolume(uint32_t volume) { *SNDsseVol = (volume * 70.0f) / 100.0f; }
 
 void __fastcall OptionMainHook(void) {
-  if (*OPTmenuMode != 2 || OPTmenuCur[*OPTmenuPage] != 3) {
+  if (*OPTmenuMode != 2 || *OPTmenuPage != 1 || OPTmenuCur[*OPTmenuPage] != 3) {
     gameExeOptionMainReal();
 
-    if (*OPTmenuMode == 2 && OPTmenuCur[*OPTmenuPage] == 3)
+    if (*OPTmenuMode == 2 && *OPTmenuPage == 1 && OPTmenuCur[*OPTmenuPage] == 3)
       NPToggleSel = ToggleSel(static_cast<uint8_t>(GetFlag(801)));
 
     return;
