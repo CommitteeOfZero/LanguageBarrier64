@@ -428,9 +428,9 @@ typedef void(__fastcall* OptionDispChip2Proc)(unsigned int a1);
 OptionDispChip2Proc gameExeOptionDispChip2 = NULL;
 OptionDispChip2Proc gameExeOptionDispChip2Real = NULL;
 
-typedef void(__fastcall* OptionInitProc)(ScriptThreadState* a1);
-OptionInitProc gameExeOptionInit = NULL;
-OptionInitProc gameExeOptionInitReal = NULL;
+typedef void(__fastcall* OptionDefaultProc)(ScriptThreadState* a1);
+OptionDefaultProc gameExeOptionDefault = NULL;
+OptionDefaultProc gameExeOptionDefaultReal = NULL;
 
 static uint32_t* OPTmenuMode = NULL;
 static uint32_t* OPTmenuCur = NULL;
@@ -532,7 +532,7 @@ unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
 
 void __fastcall OptionMainHook(void);
 void __fastcall OptionDispChip2Hook(unsigned int a1);
-void __fastcall OptionInitHook(ScriptThreadState* a1);
+void __fastcall OptionDefaultHook(ScriptThreadState* a1);
 
 static int* gameExeEpList = NULL;  // = (int *)0x52E1E8;
 
@@ -912,8 +912,8 @@ void gameInit() {
     scanCreateEnableHook("game", "OptionDispChip2", reinterpret_cast<uintptr_t*>(&gameExeOptionDispChip2),
         reinterpret_cast<LPVOID>(OptionDispChip2Hook), reinterpret_cast<LPVOID*>(&gameExeOptionDispChip2Real));
 
-    scanCreateEnableHook("game", "OptionInit", reinterpret_cast<uintptr_t*>(&gameExeOptionInit),
-        reinterpret_cast<LPVOID>(OptionInitHook), reinterpret_cast<LPVOID*>(&gameExeOptionInitReal));
+    scanCreateEnableHook("game", "OptionDefault", reinterpret_cast<uintptr_t*>(&gameExeOptionDefault),
+        reinterpret_cast<LPVOID>(OptionDefaultHook), reinterpret_cast<LPVOID*>(&gameExeOptionDefaultReal));
 
     gameExeSSEplay = reinterpret_cast<SSEplayProc>(sigScan("game", "SSEplay"));
     gameExePollInput = reinterpret_cast<PollInputProc>(sigScan("game", "PollInput"));
@@ -1700,15 +1700,15 @@ void __fastcall OptionDispChip2Hook(unsigned int a1) {
   drawSpriteCHNHook(152, 1565.0f, 1408.0f, 42.0f, 42.0f, 1413.0f + 126.0f * (int)(!GetFlag(801)), 596.0f, 0xFFFFFF, a1);
 }
 
-void __fastcall OptionInitHook(ScriptThreadState* a1) {
+void __fastcall OptionDefaultHook(ScriptThreadState* a1) {
     a1->pc += 2;
     uint8_t sub = *(a1->pc);
 
     // Reset for real function
     a1->pc -= 2;
-    gameExeOptionInitReal(a1);
+    gameExeOptionDefaultReal(a1);
 
-    // Not OptionInit, nothing to do
+    // Not OptionDefault, nothing to do
     if (sub != 4) return;
 
     // Not in text settings, nothing to do
