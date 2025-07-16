@@ -401,6 +401,7 @@ static uintptr_t gameExePLoopBgm = NULL;
 static uintptr_t gameExePShouldPlayBgm = NULL;
 // scroll height is +6A78
 static int* gameExeScriptIdsToFileIds = NULL;
+static uintptr_t gameExePActiveInputDevice = NULL;
 
 static std::string stringReplacementTable;
 static mpkObject* c0dataMpk = NULL;
@@ -711,6 +712,9 @@ void gameInit() {
     gameExePLoopBgm = sigScan("game", "useOfPLoopBgm");
   if (config["gamedef"]["signatures"]["game"].count("useOfPShouldPlayBgm") == 1)
     gameExePShouldPlayBgm = sigScan("game", "useOfPShouldPlayBgm");
+
+  if (config["gamedef"]["signatures"]["game"].count("useOfActiveInputDevice") == 1)
+    gameExePActiveInputDevice = sigScan("game", "useOfActiveInputDevice");
 
   if (config["gamedef"]["signatures"]["game"].count("drawSpriteInternal") ==
       1) {
