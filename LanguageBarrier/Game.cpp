@@ -433,6 +433,10 @@ typedef void(__fastcall* OptionDefaultProc)(ScriptThreadState* a1);
 OptionDefaultProc gameExeOptionDefault = NULL;
 OptionDefaultProc gameExeOptionDefaultReal = NULL;
 
+typedef void(__fastcall* TipsInitProc)(void);
+TipsInitProc gameExeTipsInit = NULL;
+TipsInitProc gameExeTipsInitReal = NULL;
+
 static uint32_t* OPTmenuMode = NULL;
 static uint32_t* OPTmenuCur = NULL;
 static uint32_t* OPTmenuPage = NULL;
@@ -534,6 +538,7 @@ unsigned __int64 __fastcall TipsDataInitHook(int a1, unsigned __int8* a2,
 void __fastcall OptionMainHook(void);
 void __fastcall OptionDispChip2Hook(unsigned int a1);
 void __fastcall OptionDefaultHook(ScriptThreadState* a1);
+void __fastcall TipsInitHook(void);
 
 static int* gameExeEpList = NULL;  // = (int *)0x52E1E8;
 
@@ -941,6 +946,11 @@ void gameInit() {
 
     // Inform game of extra option
     OPTmenuMaxCur[1] = 3 + 1;
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("TipsInit")) {
+    scanCreateEnableHook("game", "TipsInit", reinterpret_cast<uintptr_t*>(&gameExeTipsInit),
+        reinterpret_cast<LPVOID>(TipsInitHook), reinterpret_cast<LPVOID*>(&gameExeTipsInitReal));
   }
 }
 
@@ -1721,6 +1731,21 @@ void __fastcall OptionDefaultHook(ScriptThreadState* a1) {
 
     NPToggleSel = ToggleSel::OFF;
     SetFlag(801, FALSE);
+}
+
+// Prevent diagnosis TIPs/Achievements from triggering early
+void __fastcall TipsInitHook(void) {
+  static const unsigned int DIAGNOSIS_CHART_FILLED = 3877;
+  static const unsigned int ANY_ENDING_CLEARED = 873;
+
+  BOOL backup = GetFlag(DIAGNOSIS_CHART_FILLED);
+
+  if (backup && !GetFlag(ANY_ENDING_CLEARED))
+      SetFlag(DIAGNOSIS_CHART_FILLED, FALSE);
+
+  gameExeTipsInitReal();
+
+  SetFlag(DIAGNOSIS_CHART_FILLED, backup);
 }
 
 }  // namespace lb
