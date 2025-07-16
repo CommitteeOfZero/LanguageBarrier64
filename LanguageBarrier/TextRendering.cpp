@@ -202,7 +202,6 @@ void TextRendering::buildFont(int fontSize, bool measure) {
   }
   int characterCount = 0;
 
-#pragma omp parallel num_threads(MAX)
   for (int i = 0; i < characterInfo.size(); i++) {
     const auto& glyph =
         fontData->getGlyphInfoByChar(characterInfo[i].index, FontType::Regular);
