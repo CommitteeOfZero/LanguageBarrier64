@@ -437,6 +437,14 @@ typedef void(__fastcall* TipsInitProc)(void);
 TipsInitProc gameExeTipsInit = NULL;
 TipsInitProc gameExeTipsInitReal = NULL;
 
+typedef void(__fastcall* SaveMenuMainProc)(void);
+SaveMenuMainProc gameExeSaveMenuMain = NULL;
+SaveMenuMainProc gameExeSaveMenuMainReal = NULL;
+
+typedef void(__fastcall* SCRcomAlbumProc)(ScriptThreadState* a1);
+SCRcomAlbumProc gameExeSCRcomAlbum = NULL;
+SCRcomAlbumProc gameExeSCRcomAlbumReal = NULL;
+
 static uint32_t* OPTmenuMode = NULL;
 static uint32_t* OPTmenuCur = NULL;
 static uint32_t* OPTmenuPage = NULL;
@@ -449,12 +457,12 @@ static uint32_t* PADcustom = NULL;
 static uint32_t* PADref = NULL;
 static uint32_t* PADone = NULL;
 
-
 static uint32_t* dword_141BADF6C = NULL; //(uint32_t*)0x141BADF6C;
 static uint64_t* qword_141BADF88 = NULL; //(uint64_t*)0x141BADF88;
 static uint32_t* dword_1417ADF98 = NULL; //(uint32_t*)0x1417ADF98;
 
 static uint8_t* MouseClick = NULL;
+static int32_t* MouseWheel = NULL;
 
 void preciseSleep(double seconds) {
   using namespace std;
@@ -539,6 +547,8 @@ void __fastcall OptionMainHook(void);
 void __fastcall OptionDispChip2Hook(unsigned int a1);
 void __fastcall OptionDefaultHook(ScriptThreadState* a1);
 void __fastcall TipsInitHook(void);
+void __fastcall SaveMenuMainHook(void);
+void __fastcall SCRcomAlbumHook(ScriptThreadState* a1);
 
 static int* gameExeEpList = NULL;  // = (int *)0x52E1E8;
 
@@ -952,6 +962,21 @@ void gameInit() {
     scanCreateEnableHook("game", "TipsInit", reinterpret_cast<uintptr_t*>(&gameExeTipsInit),
         reinterpret_cast<LPVOID>(TipsInitHook), reinterpret_cast<LPVOID*>(&gameExeTipsInitReal));
   }
+
+  if (config["gamedef"]["signatures"]["game"].count("SaveMenuMain")) {
+    scanCreateEnableHook("game", "SaveMenuMain", reinterpret_cast<uintptr_t*>(&gameExeSaveMenuMain),
+        reinterpret_cast<LPVOID>(SaveMenuMainHook), reinterpret_cast<LPVOID*>(&gameExeSaveMenuMainReal));
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("SCRcomAlbum")) {
+    scanCreateEnableHook("game", "SCRcomAlbum", reinterpret_cast<uintptr_t*>(&gameExeSCRcomAlbum),
+        reinterpret_cast<LPVOID>(SCRcomAlbumHook), reinterpret_cast<LPVOID*>(&gameExeSCRcomAlbumReal));
+  }
+
+  if (config["gamedef"]["signatures"]["game"].count("MouseWheel")) {
+    MouseWheel = reinterpret_cast<int32_t*>(sigScan("game", "MouseWheel"));
+  }
+
 }
 
 // earlyInit is called after all the subsystems have been initialised but before
@@ -1746,6 +1771,29 @@ void __fastcall TipsInitHook(void) {
   gameExeTipsInitReal();
 
   SetFlag(DIAGNOSIS_CHART_FILLED, backup);
+}
+
+void __fastcall SaveMenuMainHook(void) {
+  if ((*reinterpret_cast<uint64_t*>(MouseClick) & 1) == 0) {
+    if (*MouseWheel < 0) *PADref |= PADcustom[8];
+    else if (*MouseWheel > 0) *PADref |= PADcustom[7];
+  }
+
+  gameExeSaveMenuMainReal();
+}
+
+void __fastcall SCRcomAlbumHook(ScriptThreadState *a1) {
+  a1->pc += 2;
+
+  uint8_t sub = *(a1->pc);
+  a1->pc -= 2;
+
+  if (sub == 1 && ((*reinterpret_cast<uint64_t*>(MouseClick) & 1) == 0)) {
+    if (*MouseWheel < 0) *PADref |= PADcustom[8];
+    else if (*MouseWheel > 0) *PADref |= PADcustom[7];
+  }
+
+  gameExeSCRcomAlbumReal(a1);
 }
 
 }  // namespace lb
