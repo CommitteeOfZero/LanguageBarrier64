@@ -13,5 +13,11 @@
       "features": [ "win32-binding", "dx9-binding", "dx11-binding", "docking-experimental" ]
     },
     "better-enums"
+  ],
+  "overrides": [
+    {
+      "name": "libass",
+      "version":"0.16.0"
+    }
   ]
 }
